@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id                    String        @id @default(uuid())
+  title                 String
+  novelText             String?
+  synopsis              String?
+  defaultNegativePrompt String?       // 全局默认负面提示词
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  scripts               Script[]
+  characters            Character[]
+  scenes                Scene[]
+  promptConfigs         PromptConfig[]
+  episodes              Episode[]
+  videos                Video[]
+}
+
+model Script {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode   Int      @default(1)
+  title     String
+  novelText String?  // 每集对应的小说原文
+  content   String
+  summary   String?
+  shots     Shot[]
+  scenes    Scene[]
+  videos    Video[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shot {
+  id               String  @id @default(uuid())
+  scriptId         String
+  script           Script  @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  order            Int
+  duration         Int     // 秒数，AI生成
+  cameraShotType   String  // wide/medium/close/extreme-close
+  cameraMovement   String  // static/slow_push_in/slow_pull_out/pan_left/pan_right/tilt_up/tilt_down/dynamic_follow/slight_handheld_shake/orbit
+  sceneSetting     String  // 中文场景描述，供用户阅读
+  characterAction  String? // 中文角色动作描述，可选
+  visualPrompt     String  // 英文结构化提示词，给视频模型用
+  negativePrompt   String? // 镜头级负面提示词，可选
+  refCharacterIds  String? // JSON数组，引用的角色ID，可选
+  audio            String  // 中文，对白/音效
+}
+
+model Character {
+  id               String  @id @default(uuid())
+  projectId        String
+  project          Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  role             String
+  description      String
+  style            String  @default("cel-shaded")
+  prompt           String?
+  imageUrl         String?
+  imageTaskId      String?  // 图片生成任务 ID（用于恢复轮询）
+  fourViewImageUrl String?
+  characterVideoUrl String?  // 角色视频 URL（用于上传角色）
+  characterVideoTaskId String?  // 视频生成任务 ID（用于恢复轮询）
+  soraCharacterId  String?   // Sora 角色 ID（上传后获得）
+  seed             Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Scene {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scriptId    String?
+  script      Script?  @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  name        String
+  description String
+  time           String   @default("day")
+  mood           String   @default("neutral")
+  weather        String   @default("Clear")
+  prompt         String?
+  negativePrompt String?
+  imageUrl       String?
+  imageTaskId    String?  // 用于恢复图片生成轮询
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PromptConfig {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      String   // 'script', 'character', 'scene', 'storyboard'
+  name      String   // 配置名称，如'默认剧本生成'
+  systemPrompt String
+  userPrompt String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Episode {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  scriptIds   String?  // JSON 数组: ["script-id-1", "script-id-2"]
+  videos      Video[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Video {
+  id                   String   @id @default(uuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episodeId            String?
+  episode              Episode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  scriptId             String?
+  script               Script?  @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  name                 String?
+
+  // 排序
+  order                Int      @default(0)
+  startTime            Float?   // 秒，可选
+  endTime              Float?   // 秒，可选
+
+  // 生成参数
+  prompt               String?
+  selectedCharacterIds String?  // JSON 数组
+  selectedSceneIds     String?  // JSON 数组
+  selectedShotIds      String?  // JSON 数组
+
+  // 资产
+  assets               VideoAsset[]
+
+  // 兼容旧数据（后续版本清理）
+  compositeImageUrl     String?
+  compositeImageTaskId  String?
+  videoUrl              String?
+  videoTaskId           String?
+  videoPrompt           String?
+  storyboardImageBase64 String?
+  storyboardUrl         String?
+  storyboardTaskId      String?
+  layoutType            String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model VideoAsset {
+  id           String   @id @default(uuid())
+  videoId      String
+  video        Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  type         String   // "composite_image" | "video"
+  url          String?
+  taskId       String?  // 轮询任务 ID
+  duration     Int?     // 5 | 10 | 15
+  aspectRatio  String?  // "16:9" | "9:16" | "1:1"
+  prompt       String?  // 生成时使用的 prompt
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+}
+
+model GlobalConfig {
+  id               String   @id @default("default")
+  // 智谱 AI 配置
+  glmApiKey        String?
+  glmApiUrl        String?  @default("https://open.bigmodel.cn/api/paas/v4/chat/completions")
+  // Anthropic 配置
+  anthropicApiKey  String?
+  anthropicApiUrl  String?  @default("https://api.anthropic.com")
+  // RunningHub 配置（生图、生视频）
+  runningHubApiKey String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
