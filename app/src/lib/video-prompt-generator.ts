@@ -4,6 +4,12 @@ interface Character {
   description: string
 }
 
+interface Prop {
+  id: string
+  name: string
+  description: string
+}
+
 interface Shot {
   order: number
   duration: number
@@ -14,14 +20,15 @@ interface Shot {
   visualPrompt: string
   negativePrompt?: string | null
   refCharacterIds?: string | null
+  refPropIds?: string | null
   audio: string
 }
 
 /**
  * 为单个 shot 组装最终的视频模型 prompt
- * 自动注入引用角色的外貌描述到 visualPrompt 前面
+ * 自动注入引用角色和道具的描述到 visualPrompt 前面
  */
-export function assembleShotPrompt(shot: Shot, characters: Character[]): string {
+export function assembleShotPrompt(shot: Shot, characters: Character[], props: Prop[] = []): string {
   let finalPrompt = ''
 
   // 注入引用角色的描述
@@ -31,6 +38,17 @@ export function assembleShotPrompt(shot: Shot, characters: Character[]): string 
       const char = characters.find(c => c.id === id)
       if (char) {
         finalPrompt += `[Character: ${char.name}] ${char.description}. `
+      }
+    }
+  }
+
+  // 注入引用道具的描述
+  if (shot.refPropIds) {
+    const refIds: string[] = JSON.parse(shot.refPropIds)
+    for (const id of refIds) {
+      const prop = props.find(p => p.id === id)
+      if (prop) {
+        finalPrompt += `[Prop: ${prop.name}] ${prop.description}. `
       }
     }
   }
@@ -55,20 +73,22 @@ export function assembleNegativePrompt(
 export function generateVideoPrompt(params: {
   scriptContent: string
   characters?: Character[]
+  props?: Prop[]
   shots?: Shot[]
   defaultNegativePrompt?: string | null
 }): string {
-  const { scriptContent, characters = [], shots = [], defaultNegativePrompt } = params
+  const { scriptContent, characters = [], props = [], shots = [], defaultNegativePrompt } = params
 
   if (shots.length === 0) {
     return scriptContent.substring(0, 200)
   }
 
   const shotPrompts = shots.map(shot => {
-    const prompt = assembleShotPrompt(shot, characters)
+    const prompt = assembleShotPrompt(shot, characters, props)
     const negative = assembleNegativePrompt(defaultNegativePrompt, shot.negativePrompt)
     return `Shot ${shot.order} (${shot.duration}s) [${shot.cameraShotType}, ${shot.cameraMovement}]: ${prompt}${negative ? ` | Negative: ${negative}` : ''}`
   })
 
   return shotPrompts.join('\n\n')
 }
+

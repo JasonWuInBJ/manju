@@ -12,7 +12,7 @@ import { Pencil, Trash2, Plus, Sparkles, Loader2, Check, X, FileText, ChevronDow
 
 interface PromptConfig {
   id: string
-  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image'
+  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop'
   name: string
   systemPrompt: string
   userPrompt: string | null
@@ -21,7 +21,7 @@ interface PromptConfig {
 
 interface Props {
   projectId: string
-  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image'
+  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop'
   defaultSystemPrompt: string
   defaultUserPrompt?: string
   onPromptSelect?: (config: PromptConfig | null) => void
@@ -36,6 +36,7 @@ const TYPE_LABELS: Record<string, string> = {
   storyboard: '分镜生成',
   video: '视频生成',
   image: '图片生成',
+  prop: '道具设计',
 }
 
 export function PromptConfigPanel({

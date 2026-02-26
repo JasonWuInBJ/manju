@@ -8,6 +8,11 @@ interface Scene {
   description: string
 }
 
+interface Prop {
+  name: string
+  description: string
+}
+
 interface Shot {
   order: number
   duration: number
@@ -26,16 +31,21 @@ interface Shot {
 export function generateStoryboardPrompt(params: {
   characters: Character[]
   scenes: Scene[]
+  props?: Prop[]
   shots?: Shot[]
   style?: string
 }): string {
-  const { characters, scenes, shots = [], style = 'cel-shaded anime style' } = params
+  const { characters, scenes, props = [], shots = [], style = 'cel-shaded anime style' } = params
 
   const characterInfo = characters.map(c =>
     `${c.name}${c.description ? ` (${c.description})` : ''}`
   ).join(', ')
 
   const sceneDesc = scenes.map(s => s.description).join('; ')
+
+  const propInfo = props.length > 0
+    ? props.map(p => `${p.name} (${p.description})`).join(', ')
+    : ''
 
   // 如果有 shots，直接用 shot 数据生成 storyboard prompt
   if (shots.length > 0) {
@@ -46,7 +56,7 @@ export function generateStoryboardPrompt(params: {
     return `3x3 Grid storyboard, visual style: ${style}, 4K resolution:
 
 Characters: ${characterInfo}
-Scene: ${sceneDesc}
+Scene: ${sceneDesc}${propInfo ? `\nProps: ${propInfo}` : ''}
 
 Storyboard shots:
 ${shotDescriptions}
@@ -61,7 +71,7 @@ Maintain consistent character & scene style across all panels.`
   return `3x3 Grid storyboard, visual style: ${style}, 4K resolution:
 
 Characters: ${characterInfo}
-Scene: ${sceneDesc}
+Scene: ${sceneDesc}${propInfo ? `\nProps: ${propInfo}` : ''}
 
 Storyboard shots:
 1. Master Shot (wide angle) - show full scene & character positions;
@@ -76,3 +86,4 @@ Storyboard shots:
 
 Maintain consistent character & scene style across all panels.`
 }
+

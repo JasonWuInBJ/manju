@@ -24,7 +24,18 @@ export async function POST(request: Request, { params }: Props) {
       role: body.role || 'supporting',
       description: body.description || '',
       style: body.style || 'cel-shaded',
+      prompt: body.prompt || null,
+      characterGroupId: body.characterGroupId || null,
+      costumeName: body.costumeName || null,
     },
   })
+  // 如果没有传入 characterGroupId，用自身 ID 作为 groupId（原版角色）
+  if (!body.characterGroupId) {
+    await prisma.character.update({
+      where: { id: character.id },
+      data: { characterGroupId: character.id },
+    })
+    character.characterGroupId = character.id
+  }
   return NextResponse.json(character)
 }

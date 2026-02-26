@@ -18,8 +18,9 @@ const steps = [
   { name: '剧本', path: 'script', step: 1, color: 'violet' },
   { name: '角色', path: 'character', step: 2, color: 'purple' },
   { name: '场景', path: 'scene', step: 3, color: 'fuchsia' },
-  { name: '分镜', path: 'storyboard', step: 4, color: 'indigo' },
-  { name: '视频', path: 'video', step: 5, color: 'pink' },
+  { name: '道具', path: 'prop', step: 4, color: 'amber' },
+  { name: '分镜', path: 'storyboard', step: 5, color: 'indigo' },
+  { name: '视频', path: 'video', step: 6, color: 'pink' },
 ]
 
 export function ProjectNav({ project }: Props) {

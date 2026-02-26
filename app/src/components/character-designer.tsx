@@ -29,6 +29,8 @@ interface Character {
   characterVideoUrl: string | null
   characterVideoTaskId: string | null
   soraCharacterId: string | null
+  characterGroupId: string | null
+  costumeName: string | null
 }
 
 interface Script {
@@ -142,6 +144,45 @@ export function CharacterDesigner({ project }: Props) {
 
   // 角色上传状态
   const [uploadingCharacter, setUploadingCharacter] = useState(false)
+
+  // 换装提取状态
+  const [extractingCostumes, setExtractingCostumes] = useState(false)
+
+  // 按 characterGroupId 分组（用于列表展示）
+  const characterGroups = (() => {
+    const groups = new Map<string, Character[]>()
+    for (const c of characters) {
+      const key = c.characterGroupId || c.id
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(c)
+    }
+    // 每组内原版（costumeName=null）排在最前
+    for (const [, group] of groups) {
+      group.sort((a, b) => (a.costumeName === null ? -1 : b.costumeName === null ? 1 : 0))
+    }
+    return Array.from(groups.values())
+  })()
+
+  const handleExtractCostumes = async () => {
+    setExtractingCostumes(true)
+    try {
+      const res = await fetch(`/api/projects/${project.id}/characters/extract-costumes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (data.costumes) {
+        setCharacters(prev => [...prev, ...data.costumes])
+        toast.success(`提取了 ${data.costumes.length} 套换装`)
+      }
+    } catch (error) {
+      console.error('Failed to extract costumes:', error)
+      toast.error('换装提取失败')
+    } finally {
+      setExtractingCostumes(false)
+    }
+  }
 
   // 视频预览弹窗
   const [previewVideo, setPreviewVideo] = useState<string | null>(null)
@@ -839,7 +880,19 @@ export function CharacterDesigner({ project }: Props) {
                   <Badge variant="secondary">{characters.length}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleExtractCostumes}
+                  disabled={extractingCostumes || characters.length === 0}
+                >
+                  {extractingCostumes ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />提取换装中...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4 mr-2" />从剧本提取换装</>
+                  )}
+                </Button>
                 <ScrollArea className="h-[320px]">
                   {characters.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -848,66 +901,58 @@ export function CharacterDesigner({ project }: Props) {
                       <p className="text-xs mt-1">从剧本提取或手动添加</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 pr-2">
-                      {characters.map(char => {
-                        const isSelected = selectedId === char.id
-                        return (
-                          <div
-                            key={char.id}
-                            onClick={() => setSelectedId(char.id)}
-                            className={`
-                              p-3 rounded-lg cursor-pointer border transition-all
-                              ${isSelected 
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' 
-                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                              }
-                            `}
-                          >
-                            <div className="flex items-start gap-3">
-                              {/* 缩略图 */}
-                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                                {char.imageUrl ? (
-                                  <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <User className="w-5 h-5 text-slate-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm truncate">{char.name}</span>
-                                  {isSelected && (
-                                    <Check className="w-4 h-4 text-blue-500 shrink-0" />
+                    <div className="space-y-3 pr-2">
+                      {characterGroups.map(group => (
+                        <div key={group[0].characterGroupId || group[0].id}>
+                          {/* 组内角色横向排列 */}
+                          <div className="flex gap-2 flex-wrap">
+                            {group.map(char => {
+                              const isSelected = selectedId === char.id
+                              return (
+                                <div
+                                  key={char.id}
+                                  onClick={() => setSelectedId(char.id)}
+                                  className={`flex-1 min-w-[80px] p-2 rounded-lg cursor-pointer border transition-all ${
+                                    isSelected
+                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                  }`}
+                                >
+                                  <div className="w-full aspect-square rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden mb-1.5">
+                                    {char.imageUrl ? (
+                                      <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <User className="w-5 h-5 text-slate-400" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs font-medium truncate text-center">
+                                    {char.costumeName || char.name}
+                                  </p>
+                                  {char.costumeName && (
+                                    <p className="text-xs text-muted-foreground truncate text-center">{char.name}</p>
                                   )}
-                                  {char.soraCharacterId && (
-                                    <Badge className="bg-green-500 text-white text-xs px-1.5 py-0 shrink-0">
-                                      已上传
-                                    </Badge>
-                                  )}
+                                  <div className="flex justify-center gap-1 mt-1 flex-wrap">
+                                    {isSelected && <Check className="w-3 h-3 text-blue-500" />}
+                                    {char.soraCharacterId && (
+                                      <Badge className="bg-green-500 text-white text-xs px-1 py-0 h-4">已上传</Badge>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <Badge variant="outline" className="text-xs px-1.5 py-0">
-                                    {ROLE_OPTIONS.find(r => r.value === char.role)?.label}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs px-1.5 py-0">
-                                    {STYLE_OPTIONS.find(s => s.value === char.style)?.label}
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                  {char.description || '暂无描述'}
-                                </p>
-                              </div>
-                            </div>
+                              )
+                            })}
                           </div>
-                        )
-                      })}
+                          {/* 组分隔线（非最后一组） */}
+                          <div className="border-b border-slate-100 dark:border-slate-800 mt-2" />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </ScrollArea>
 
                 {/* 手动添加按钮 */}
-                <Button 
-                  variant="outline" 
-                  className="w-full mt-3"
+                <Button
+                  variant="outline"
+                  className="w-full"
                   onClick={() => setIsAddDialogOpen(true)}
                 >
                   <Plus className="w-4 h-4 mr-2" />

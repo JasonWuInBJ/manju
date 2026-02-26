@@ -75,10 +75,10 @@ export async function POST(request: Request, { params }: Props) {
     // 删除现有角色
     await prisma.character.deleteMany({ where: { projectId: id } })
 
-    // 创建新角色
+    // 创建新角色，同时设置 characterGroupId（平级换装分组用）
     const characters = await Promise.all(
-      data.characters.map((char: { name: string; role: string; description: string }) =>
-        prisma.character.create({
+      data.characters.map(async (char: { name: string; role: string; description: string }) => {
+        const character = await prisma.character.create({
           data: {
             projectId: id,
             name: char.name,
@@ -87,7 +87,12 @@ export async function POST(request: Request, { params }: Props) {
             style: 'cel-shaded',
           },
         })
-      )
+        // 用自身 ID 作为 groupId
+        return prisma.character.update({
+          where: { id: character.id },
+          data: { characterGroupId: character.id },
+        })
+      })
     )
 
     return NextResponse.json({ characters })

@@ -9,7 +9,8 @@ interface Props {
 
 function buildSystemPrompt(
   characters: { id: string; name: string; description: string }[],
-  scenes: { id: string; name: string; description: string }[]
+  scenes: { id: string; name: string; description: string }[],
+  props: { id: string; name: string; description: string }[]
 ): string {
   const charSection = characters.length > 0
     ? characters.map(c => `- ${c.id} (${c.name}): ${c.description}`).join('\n')
@@ -19,6 +20,10 @@ function buildSystemPrompt(
     ? scenes.map(s => `- ${s.id} (${s.name}): ${s.description}`).join('\n')
     : '（暂无场景资产）'
 
+  const propSection = props.length > 0
+    ? props.map(p => `- ${p.id} (${p.name}): ${p.description}`).join('\n')
+    : '（暂无道具资产）'
+
   return `你是一位专业的AI视频分镜师。根据剧本内容生成分镜数据。
 
 ## 可用角色资产
@@ -27,9 +32,13 @@ ${charSection}
 ## 可用场景资产
 ${sceneSection}
 
+## 可用道具资产
+${propSection}
+
 ## 输出要求
 - visual_prompt 必须为英文，格式：主体 + 动作 + 环境 + 光影 + 镜头语言，要求高质量、电影感
 - ref_character_ids 引用上方角色ID（数组），系统会自动将角色外貌描述注入到视频模型的prompt中
+- ref_prop_ids 引用上方道具ID（数组），系统会自动将道具描述注入到视频模型的prompt中
 - camera_shot_type 使用标准值：wide, medium, close, extreme-close
 - camera_movement 使用标准值：static, slow_push_in, slow_pull_out, pan_left, pan_right, tilt_up, tilt_down, dynamic_follow, slight_handheld_shake, orbit
 - duration 单位为秒，建议 3-6 秒/镜头
@@ -50,6 +59,7 @@ ${sceneSection}
       "visual_prompt": "English visual prompt for video model",
       "negative_prompt": "optional negative prompt",
       "ref_character_ids": ["character_id"],
+      "ref_prop_ids": ["prop_id"],
       "audio": "对白或音效"
     }
   ]
@@ -66,6 +76,7 @@ interface ShotFromAI {
   visual_prompt: string
   negative_prompt?: string
   ref_character_ids?: string[]
+  ref_prop_ids?: string[]
   audio: string
 }
 
@@ -75,8 +86,8 @@ export async function POST(request: Request, { params }: Props) {
   const { scriptContent, scriptId, systemPrompt, userPrompt, model } = body
 
   try {
-    // 从 DB 拉取角色和场景资产
-    const [characters, scenes] = await Promise.all([
+    // 从 DB 拉取角色、场景和道具资产
+    const [characters, scenes, props] = await Promise.all([
       prisma.character.findMany({
         where: { projectId: id },
         select: { id: true, name: true, description: true },
@@ -85,9 +96,13 @@ export async function POST(request: Request, { params }: Props) {
         where: { projectId: id },
         select: { id: true, name: true, description: true },
       }),
+      prisma.prop.findMany({
+        where: { projectId: id },
+        select: { id: true, name: true, description: true },
+      }),
     ])
 
-    const defaultSystemPrompt = buildSystemPrompt(characters, scenes)
+    const defaultSystemPrompt = buildSystemPrompt(characters, scenes, props)
 
     // 如果前端传了自定义 systemPrompt，替换其中的占位符
     let finalSystemPrompt = defaultSystemPrompt
@@ -98,9 +113,13 @@ export async function POST(request: Request, { params }: Props) {
       const sceneSection = scenes.length > 0
         ? scenes.map(s => `- ${s.id} (${s.name}): ${s.description}`).join('\n')
         : '（暂无场景资产）'
+      const propSection = props.length > 0
+        ? props.map(p => `- ${p.id} (${p.name}): ${p.description}`).join('\n')
+        : '（暂无道具资产）'
       finalSystemPrompt = systemPrompt
         .replace('{characters}', charSection)
         .replace('{scenes}', sceneSection)
+        .replace('{props}', propSection)
     }
 
     const finalUserPrompt = userPrompt || `请将以下剧本转换为分镜：\n\n${scriptContent}`
@@ -169,6 +188,7 @@ export async function POST(request: Request, { params }: Props) {
             visualPrompt: s.visual_prompt,
             negativePrompt: s.negative_prompt || null,
             refCharacterIds: s.ref_character_ids ? JSON.stringify(s.ref_character_ids) : null,
+            refPropIds: s.ref_prop_ids ? JSON.stringify(s.ref_prop_ids) : null,
             audio: s.audio,
           },
         })
