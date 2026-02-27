@@ -25,6 +25,13 @@ export async function PUT(request: Request, { params }: Props) {
       prompt: body.prompt,
       negativePrompt: body.negativePrompt,
       imageUrl: body.imageUrl,
+      location: body.location ?? null,
+      region: body.region ?? null,
+      environmentType: body.environmentType ?? null,
+      era: body.era ?? null,
+      season: body.season ?? null,
+      sceneFunction: body.sceneFunction ?? null,
+      spaceLayout: body.spaceLayout ?? null,
     },
   })
   return NextResponse.json(scene)

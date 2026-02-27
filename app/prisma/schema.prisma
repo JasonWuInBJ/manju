@@ -95,6 +95,14 @@ model Scene {
   negativePrompt String?
   imageUrl       String?
   imageTaskId    String?  // 用于恢复图片生成轮询
+  // 详细场景信息
+  location        String?  // 空间位置，如"EXT-第108层天桥-栏杆旁"
+  region          String?  // 地域坐标，如"亚洲-中国-新九龙"
+  environmentType String?  // 环境类型，如"城市/室内/自然"
+  era             String?  // 年代坐标，如"未来-中国"
+  season          String?  // 季节，如"夏季"
+  sceneFunction   String?  // 场景功能，如"开场介绍;起(背景铺垫)"
+  spaceLayout     String?  // 空间区域划分
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

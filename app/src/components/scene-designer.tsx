@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { PromptConfigPanel } from './prompt-config-panel'
 import { ModelSelector } from './model-selector'
-import { Sparkles, Settings, Loader2, Image as ImageIcon, Plus, MapPin, Check, FileText, Trash2 } from 'lucide-react'
+import { Sparkles, Settings, Loader2, Image as ImageIcon, Plus, MapPin, Check, FileText, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface Scene {
   id: string
@@ -27,6 +27,13 @@ interface Scene {
   imageUrl: string | null
   imageTaskId: string | null
   scriptId: string | null
+  location: string | null
+  region: string | null
+  environmentType: string | null
+  era: string | null
+  season: string | null
+  sceneFunction: string | null
+  spaceLayout: string | null
 }
 
 interface Script {
@@ -181,6 +188,7 @@ export function SceneDesigner({ project }: Props) {
   const [generatingImage, setGeneratingImage] = useState(false)
   const [imageProgress, setImageProgress] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   // 添加 ref 防止重复轮询
   const pollingImageRef = useRef(false)
@@ -828,6 +836,100 @@ export function SceneDesigner({ project }: Props) {
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* 详细信息（折叠） */}
+                    <div className="border rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setDetailsOpen(v => !v)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                      >
+                        <span>详细信息</span>
+                        {detailsOpen
+                          ? <ChevronDown className="w-4 h-4 text-slate-400" />
+                          : <ChevronRight className="w-4 h-4 text-slate-400" />
+                        }
+                      </button>
+                      {detailsOpen && (
+                        <div className="px-4 pb-4 pt-2 space-y-3 border-t">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">空间位置</Label>
+                              <Input
+                                value={selected.location || ''}
+                                onChange={e => setScenes(scenes.map(s => s.id === selected.id ? { ...s, location: e.target.value } : s))}
+                                placeholder="如：EXT-第108层天桥-栏杆旁"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">地域坐标</Label>
+                              <Input
+                                value={selected.region || ''}
+                                onChange={e => setScenes(scenes.map(s => s.id === selected.id ? { ...s, region: e.target.value } : s))}
+                                placeholder="如：亚洲-中国-新九龙"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">环境类型</Label>
+                              <Select
+                                value={selected.environmentType || ''}
+                                onValueChange={v => setScenes(scenes.map(s => s.id === selected.id ? { ...s, environmentType: v } : s))}
+                              >
+                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="选择环境类型" /></SelectTrigger>
+                                <SelectContent>
+                                  {['城市', '室内', '自然', '太空', '水下', '其他'].map(v => (
+                                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">年代坐标</Label>
+                              <Input
+                                value={selected.era || ''}
+                                onChange={e => setScenes(scenes.map(s => s.id === selected.id ? { ...s, era: e.target.value } : s))}
+                                placeholder="如：未来-中国"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">季节</Label>
+                              <Select
+                                value={selected.season || ''}
+                                onValueChange={v => setScenes(scenes.map(s => s.id === selected.id ? { ...s, season: v } : s))}
+                              >
+                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="选择季节" /></SelectTrigger>
+                                <SelectContent>
+                                  {['春季', '夏季', '秋季', '冬季'].map(v => (
+                                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium mb-1 block text-muted-foreground">场景功能</Label>
+                              <Input
+                                value={selected.sceneFunction || ''}
+                                onChange={e => setScenes(scenes.map(s => s.id === selected.id ? { ...s, sceneFunction: e.target.value } : s))}
+                                placeholder="如：开场介绍;起(背景铺垫)"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium mb-1 block text-muted-foreground">空间区域划分</Label>
+                            <Input
+                              value={selected.spaceLayout || ''}
+                              onChange={e => setScenes(scenes.map(s => s.id === selected.id ? { ...s, spaceLayout: e.target.value } : s))}
+                              placeholder="如：天桥栏杆边缘-玻璃幕墙外侧"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 保存按钮 */}
