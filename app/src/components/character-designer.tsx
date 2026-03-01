@@ -20,7 +20,6 @@ interface Character {
   name: string
   role: string
   description: string
-  style: string
   prompt: string | null
   imageUrl: string | null
   imageTaskId: string | null
@@ -50,13 +49,6 @@ interface Props {
   project: Project
 }
 
-const STYLE_PROMPTS: Record<string, string> = {
-  'cel-shaded': '赛璐璐平涂风格，干净线条，硬边阴影，高对比度，2D动漫风格',
-  'realistic': '厚涂写实风格，柔和渐变，细腻光影，自然色调',
-  'watercolor': '水彩淡雅风格，透明感，柔和边缘，低饱和度',
-  'american-comic': '美漫风格，粗犷线条，强烈明暗对比，高饱和度',
-}
-
 const DEFAULT_SYSTEM_PROMPT = `# Role
 你是一位精通AI图文生成的二次元角色设计专家。你擅长将剧本文字转化为精准、结构化的AI绘图提示词。
 # Task
@@ -75,17 +67,9 @@ const DEFAULT_SYSTEM_PROMPT = `# Role
 const DEFAULT_USER_PROMPT_TEMPLATE = `角色名：{name}
 角色类型：{role}
 描述：{description}
-风格：{style}
 
 剧本参考：
 {script}`
-
-const STYLE_OPTIONS = [
-  { value: 'cel-shaded', label: '赛璐璐平涂' },
-  { value: 'realistic', label: '厚涂写实' },
-  { value: 'watercolor', label: '水彩淡雅' },
-  { value: 'american-comic', label: '美漫风格' },
-]
 
 const ROLE_OPTIONS = [
   { value: 'protagonist', label: '主角' },
@@ -97,14 +81,12 @@ interface CharacterForm {
   name: string
   role: string
   description: string
-  style: string
 }
 
 const emptyForm: CharacterForm = {
   name: '',
   role: 'supporting',
   description: '',
-  style: 'cel-shaded',
 }
 
 export function CharacterDesigner({ project }: Props) {
@@ -899,50 +881,64 @@ export function CharacterDesigner({ project }: Props) {
                       <p className="text-xs mt-1">从剧本提取或手动添加</p>
                     </div>
                   ) : (
-                    <div className="space-y-3 pr-2">
-                      {characterGroups.map(group => (
-                        <div key={group[0].characterGroupId || group[0].id}>
-                          {/* 组内角色横向排列 */}
-                          <div className="flex gap-2 flex-wrap">
-                            {group.map(char => {
-                              const isSelected = selectedId === char.id
-                              return (
-                                <div
-                                  key={char.id}
-                                  onClick={() => setSelectedId(char.id)}
-                                  className={`flex-1 min-w-[80px] p-2 rounded-lg cursor-pointer border transition-all ${
-                                    isSelected
-                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                  }`}
-                                >
-                                  <div className="w-full aspect-square rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden mb-1.5">
-                                    {char.imageUrl ? (
-                                      <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <User className="w-5 h-5 text-slate-400" />
-                                    )}
-                                  </div>
-                                  <p className="text-xs font-medium truncate text-center">
-                                    {char.costumeName || char.name}
-                                  </p>
-                                  {char.costumeName && (
-                                    <p className="text-xs text-muted-foreground truncate text-center">{char.name}</p>
-                                  )}
-                                  <div className="flex justify-center gap-1 mt-1 flex-wrap">
-                                    {isSelected && <Check className="w-3 h-3 text-blue-500" />}
-                                    {char.soraCharacterId && (
-                                      <Badge className="bg-green-500 text-white text-xs px-1 py-0 h-4">已上传</Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
+                    <div className="space-y-2 pr-2">
+                      {characters.map(char => {
+                        const isSelected = selectedId === char.id
+                        return (
+                          <div
+                            key={char.id}
+                            onClick={() => setSelectedId(char.id)}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            {/* 角色头像 */}
+                            <div className="w-12 h-12 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                              {char.imageUrl ? (
+                                <img src={char.imageUrl} alt={char.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="w-6 h-6 text-slate-400" />
+                              )}
+                            </div>
+
+                            {/* 角色信息 */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">
+                                {char.costumeName || char.name}
+                              </p>
+                              {char.costumeName && (
+                                <p className="text-sm text-muted-foreground truncate">{char.name}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {ROLE_OPTIONS.find(o => o.value === char.role)?.label || char.role}
+                                </Badge>
+                                {char.soraCharacterId && (
+                                  <Badge className="bg-green-500 text-white text-xs px-1 py-0 h-4">已上传</Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 选中标识和删除按钮 */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDelete(char.id)
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                          {/* 组分隔线（非最后一组） */}
-                          <div className="border-b border-slate-100 dark:border-slate-800 mt-2" />
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </ScrollArea>
@@ -1003,20 +999,6 @@ export function CharacterDesigner({ project }: Props) {
                           </SelectContent>
                         </Select>
                       </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">风格</Label>
-                      <Select value={selected.style} onValueChange={v => updateSelected({ style: v })}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STYLE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
 
                     <div>

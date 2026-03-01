@@ -260,11 +260,11 @@ export function PromptConfigPanel({
                 const isSelected = selectedPromptId === config.id
                 const isEditing = editingId === config.id
                 return (
-                  <button
+                  <div
                     key={config.id}
                     onClick={() => handleCardClick(config)}
                     className={`
-                      relative p-4 rounded-lg border text-left transition-all
+                      relative p-4 rounded-lg border text-left transition-all cursor-pointer
                       ${isSelected
                         ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm'
                         : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-950'
@@ -328,7 +328,7 @@ export function PromptConfigPanel({
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
