@@ -8,6 +8,11 @@ interface Scene {
   description: string
 }
 
+interface Prop {
+  name: string
+  description: string
+}
+
 interface Script {
   content: string
 }
@@ -19,10 +24,11 @@ interface Script {
 export function generateCompositeImagePrompt(params: {
   characters: Character[]
   scenes: Scene[]
+  props?: Prop[]
   script?: Script
   style?: string
 }): string {
-  const { characters, scenes, script, style = 'cel-shaded anime style' } = params
+  const { characters, scenes, props = [], script, style = 'cel-shaded anime style' } = params
 
   // Build character list with names and descriptions
   const characterInfo = characters.map(c => {
@@ -35,6 +41,11 @@ export function generateCompositeImagePrompt(params: {
   // Build scene descriptions
   const sceneDesc = scenes.map(s => `${s.name}: ${s.description}`).join('; ')
 
+  // Build prop descriptions
+  const propInfo = props.length > 0
+    ? props.map(p => `${p.name} (${p.description})`).join(', ')
+    : ''
+
   // Get script content (first 300 characters for context)
   const scriptContent = script?.content
     ? script.content.substring(0, 300) + (script.content.length > 300 ? '...' : '')
@@ -44,6 +55,12 @@ export function generateCompositeImagePrompt(params: {
   let prompt = `A single composite image featuring the following characters: ${characterInfo}
 
 Scene: ${sceneDesc}`
+
+  if (propInfo) {
+    prompt += `
+
+Props: ${propInfo}`
+  }
 
   if (scriptContent) {
     prompt += `

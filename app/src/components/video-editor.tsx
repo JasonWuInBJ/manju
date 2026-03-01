@@ -13,7 +13,6 @@ import { PromptConfigPanel } from '@/components/prompt-config-panel'
 import { DEFAULT_VIDEO_SYSTEM_PROMPT, DEFAULT_VIDEO_USER_PROMPT } from '@/lib/default-video-prompts'
 import { DEFAULT_IMAGE_SYSTEM_PROMPT, DEFAULT_IMAGE_USER_PROMPT } from '@/lib/default-image-prompts'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ModelSelector } from '@/components/model-selector'
 
 interface Character {
   id: string
@@ -99,7 +98,6 @@ export function VideoEditor({ project }: Props) {
   const [selectedShotIds, setSelectedShotIds] = useState<string[]>([])
 
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState<string>('glm-5')
 
   // Prompt configuration state
   const [selectedPromptConfig, setSelectedPromptConfig] = useState<PromptConfig | null>(null)
@@ -1061,12 +1059,6 @@ export function VideoEditor({ project }: Props) {
 
     {/* Config Tab */}
     <TabsContent value="config" className="space-y-6 mt-6">
-      {/* Model Selector */}
-      <ModelSelector
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-      />
-
       {/* Image Prompt Configuration */}
       <PromptConfigPanel
         projectId={project.id}

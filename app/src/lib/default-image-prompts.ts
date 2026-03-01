@@ -16,6 +16,8 @@ Characters: {characters}
 
 Scene: {scenes}
 
+Props: {props}
+
 Script context: {script}
 
 Requirements:

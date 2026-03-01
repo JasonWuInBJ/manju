@@ -57,10 +57,17 @@ export async function POST(request: Request, { params }: Props) {
       )
     }
 
+    // Fetch props
+    const props = await prisma.prop.findMany({
+      where: { projectId: id },
+      select: { name: true, description: true },
+    })
+
     // Generate prompt
     const prompt = generateStoryboardPrompt({
       characters,
       scenes,
+      props,
       style: 'cel-shaded anime style',
     })
 

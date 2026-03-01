@@ -21,6 +21,12 @@ export async function POST(request: Request, { params }: Props) {
   })
 
   try {
+    // Fetch project for style
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { style: true },
+    })
+
     // Fetch video with script
     const video = await prisma.video.findUnique({
       where: { id: videoId },
@@ -37,6 +43,12 @@ export async function POST(request: Request, { params }: Props) {
     const scenes = await prisma.scene.findMany({
       where: { id: { in: sceneIds }, projectId: id },
       select: { id: true, name: true, description: true, imageUrl: true },
+    })
+
+    // Fetch props
+    const props = await prisma.prop.findMany({
+      where: { projectId: id },
+      select: { name: true, description: true },
     })
 
     if (characters.length === 0 || scenes.length === 0) {
@@ -72,11 +84,15 @@ export async function POST(request: Request, { params }: Props) {
         ? `${systemPrompt}\n\n${customPrompt}`
         : customPrompt
     } else {
+      // Use project style or fallback to default
+      const projectStyle = project?.style || 'cel-shaded anime style'
+
       prompt = generateCompositeImagePrompt({
         characters,
         scenes,
+        props,
         script: video?.script || undefined,
-        style: 'cel-shaded anime style',
+        style: projectStyle,
       })
     }
 

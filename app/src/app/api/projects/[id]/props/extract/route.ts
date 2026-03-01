@@ -76,6 +76,9 @@ export async function POST(request: Request, { params }: Props) {
       ? customUserPrompt.replace('{script}', content)
       : `请从以下剧本中提取道具资产：\n\n${content}`
 
+    console.log('[Props Extract] System Prompt:', effectiveSystemPrompt)
+    console.log('[Props Extract] User Prompt:', effectiveUserPrompt)
+
     const message = await retryWithBackoff(
       () => callLLM({ model: MODEL, systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt, maxTokens: 4096 }),
       { maxRetries: 3, initialDelay: 2000, onRetry: (error, attempt) => console.log(`[Props Extract] 重试第 ${attempt} 次`, error.message) }

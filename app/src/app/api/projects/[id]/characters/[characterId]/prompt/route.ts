@@ -6,13 +6,6 @@ interface Props {
   params: Promise<{ id: string; characterId: string }>
 }
 
-const STYLE_PROMPTS: Record<string, string> = {
-  'cel-shaded': '赛璐璐平涂风格，干净线条，硬边阴影，高对比度，2D动漫风格',
-  'realistic': '厚涂写实风格，柔和渐变，细腻光影，自然色调',
-  'watercolor': '水彩淡雅风格，透明感，柔和边缘，低饱和度',
-  'american-comic': '美漫风格，粗犷线条，强烈明暗对比，高饱和度',
-}
-
 const SYSTEM_PROMPT = `你是一位资深的二次元漫画监制。根据角色信息生成适合AI绘图的英文Prompt。
 
 输出要求：
@@ -30,17 +23,19 @@ export async function POST(request: Request, { params }: Props) {
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
+    include: { project: true },
   })
 
   if (!character) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const styleDesc = STYLE_PROMPTS[character.style] || STYLE_PROMPTS['cel-shaded']
+  // 使用项目风格，如果没有则使用默认值
+  const projectStyle = character.project.style || 'Anime style, cel shading'
 
   // 如果请求提供了自定义Prompt，使用自定义Prompt；否则使用默认Prompt
   const finalSystemPrompt = systemPrompt || SYSTEM_PROMPT
-  const finalUserPrompt = userPrompt || `角色名：${character.name}\n角色类型：${character.role}\n描述：${character.description}\n风格：${styleDesc}`
+  const finalUserPrompt = userPrompt || `角色名：${character.name}\n角色类型：${character.role}\n描述：${character.description}\n风格：${projectStyle}`
 
   try {
     const startTime = Date.now()

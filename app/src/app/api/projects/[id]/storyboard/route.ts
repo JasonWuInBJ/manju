@@ -15,6 +15,7 @@ interface ShotInput {
   visualPrompt: string
   negativePrompt?: string | null
   refCharacterIds?: string | null
+  refPropIds?: string | null
   audio: string
 }
 
@@ -48,6 +49,7 @@ export async function PUT(request: Request, { params }: Props) {
           visualPrompt: s.visualPrompt,
           negativePrompt: s.negativePrompt || null,
           refCharacterIds: s.refCharacterIds || null,
+          refPropIds: s.refPropIds || null,
           audio: s.audio,
         },
       })

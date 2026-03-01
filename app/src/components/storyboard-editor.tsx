@@ -10,7 +10,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PromptConfigPanel } from './prompt-config-panel'
-import { ModelSelector } from './model-selector'
 import { Sparkles, Settings, Film, Loader2, Trash2, Plus, Save, ChevronDown, ChevronRight, Clock, Video } from 'lucide-react'
 
 interface Shot {
@@ -168,7 +167,6 @@ export function StoryboardEditor({ project }: Props) {
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [selectedPromptConfig, setSelectedPromptConfig] = useState<any>(null)
-  const [selectedModel, setSelectedModel] = useState<string>('glm-5')
   const [expandedShots, setExpandedShots] = useState<Set<number>>(new Set())
   const [defaultNegativePrompt, setDefaultNegativePrompt] = useState(project.defaultNegativePrompt || '')
 
@@ -201,7 +199,6 @@ export function StoryboardEditor({ project }: Props) {
           scriptContent: activeScript.content,
           systemPrompt,
           userPrompt,
-          model: selectedModel,
         }),
       })
       const data = await res.json()
@@ -563,12 +560,6 @@ export function StoryboardEditor({ project }: Props) {
         </TabsContent>
 
         <TabsContent value="config" className="space-y-4 mt-4">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-            title="分镜生成模型"
-            description="选择 AI 模型进行分镜生成"
-          />
           <PromptConfigPanel
             projectId={project.id}
             type="storyboard"

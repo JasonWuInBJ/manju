@@ -17,6 +17,8 @@ Characters: {characters}
 
 Scene: {scenes}
 
+Props: {props}
+
 Shot Breakdown (分镜):
 {shots}
 

@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ModelSelector } from './model-selector'
 import { PromptConfigPanel } from './prompt-config-panel'
 import { CheckCircle2, Circle, Loader2, FileText, BookOpen, Sparkles, Settings, Plus, Trash2, Eye, Edit3 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -71,7 +70,6 @@ export function ScriptEditor({ project }: Props) {
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview')
   const [selectedPromptConfig, setSelectedPromptConfig] = useState<any>(null)
-  const [selectedModel, setSelectedModel] = useState<string>('glm-5')
   const [synopsis] = useState(project.synopsis || '')
 
   const activeScript = scripts.find(s => s.id === activeEpisode)
@@ -109,7 +107,6 @@ export function ScriptEditor({ project }: Props) {
           synopsis,
           systemPrompt,
           userPrompt: finalUserPrompt,
-          model: selectedModel,
           scriptId,
         }),
       })
@@ -430,11 +427,6 @@ export function ScriptEditor({ project }: Props) {
 
       <TabsContent value="config" className="mt-4">
         <div className="space-y-4 p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-            title="模型选择"
-          />
           <PromptConfigPanel
             projectId={project.id}
             type="script"

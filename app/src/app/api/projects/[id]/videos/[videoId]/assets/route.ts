@@ -115,6 +115,14 @@ async function handleCompositeImageGeneration(
     select: { id: true, name: true, description: true, imageUrl: true },
   })
 
+  // Fetch props
+  const props = await prisma.prop.findMany({
+    where: { projectId },
+    select: { name: true, description: true },
+  })
+
+  console.log('[Asset Create] Props:', JSON.stringify(props.map(p => p.name)))
+
   // Collect image URLs
   const imageUrls: string[] = []
   characterIds.forEach((id: string) => {
@@ -141,10 +149,13 @@ async function handleCompositeImageGeneration(
     promptToUse = generateCompositeImagePrompt({
       characters,
       scenes,
+      props,
       script: video.script || undefined,
       style: 'cel-shaded anime style',
     })
   }
+
+  console.log('[Asset Create] Generated prompt:', promptToUse)
 
   // Call RunningHub API
   const apiUrl = 'https://www.runninghub.cn/openapi/v2/rhart-image-n-pro/edit'

@@ -12,7 +12,7 @@ import { Pencil, Trash2, Plus, Sparkles, Loader2, Check, X, FileText, ChevronDow
 
 interface PromptConfig {
   id: string
-  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop'
+  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop' | 'prop_extract'
   name: string
   systemPrompt: string
   userPrompt: string | null
@@ -21,7 +21,7 @@ interface PromptConfig {
 
 interface Props {
   projectId: string
-  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop'
+  type: 'script' | 'character' | 'scene' | 'scene_extract' | 'storyboard' | 'video' | 'image' | 'prop' | 'prop_extract'
   defaultSystemPrompt: string
   defaultUserPrompt?: string
   onPromptSelect?: (config: PromptConfig | null) => void
@@ -37,6 +37,7 @@ const TYPE_LABELS: Record<string, string> = {
   video: '视频生成',
   image: '图片生成',
   prop: '道具设计',
+  prop_extract: '道具提取',
 }
 
 export function PromptConfigPanel({
@@ -69,6 +70,7 @@ export function PromptConfigPanel({
       if (filtered.length > 0 && !selectedPromptId) {
         const defaultConfig = filtered.find((c: PromptConfig) => c.isDefault) || filtered[0]
         onPromptSelect?.(defaultConfig)
+        setEditingId(defaultConfig.id)
       }
     } catch (error) {
       console.error('Failed to fetch configs:', error)

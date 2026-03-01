@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { PromptConfigPanel } from './prompt-config-panel'
-import { ModelSelector } from './model-selector'
 import { Sparkles, Settings, Loader2, Trash2, Plus, User, Check, FileText, Image as ImageIcon, Video, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -117,7 +116,6 @@ export function CharacterDesigner({ project }: Props) {
   const [loading, setLoading] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [selectedPromptConfig, setSelectedPromptConfig] = useState<any>(null)
-  const [selectedModel, setSelectedModel] = useState<string>('glm-5')
   
   // 弹窗状态
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -1374,12 +1372,6 @@ export function CharacterDesigner({ project }: Props) {
         </TabsContent>
 
         <TabsContent value="config" className="space-y-6 mt-6">
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-            title="角色 Prompt 生成模型"
-            description="选择用于生成角色绘图 Prompt 的 AI 模型"
-          />
           <PromptConfigPanel
             projectId={project.id}
             type="character"

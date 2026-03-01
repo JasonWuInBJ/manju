@@ -40,11 +40,17 @@ export async function POST(request: Request, { params }: Props) {
   const body = await request.json()
   const { systemPrompt: customSystemPrompt, userPrompt: customUserPrompt } = body
 
-  const scene = await prisma.scene.findUnique({ where: { id: sceneId } })
+  const scene = await prisma.scene.findUnique({
+    where: { id: sceneId },
+    include: { project: true },
+  })
 
   if (!scene) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
+
+  // 获取项目风格
+  const projectStyle = scene.project.style || 'Anime style'
 
   const timeDesc = TIME_MAP[scene.time] || TIME_MAP['day']
   const moodDesc = MOOD_MAP[scene.mood] || MOOD_MAP['neutral']
@@ -115,6 +121,11 @@ export async function POST(request: Request, { params }: Props) {
       }
     } else {
       prompt = cleaned.trim()
+    }
+
+    // 在prompt末尾拼接项目风格
+    if (prompt && projectStyle) {
+      prompt = `${prompt}, ${projectStyle}`
     }
 
     console.log('[Scene Prompt] AI模型调用成功', {

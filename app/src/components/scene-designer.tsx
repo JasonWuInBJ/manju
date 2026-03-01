@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { PromptConfigPanel } from './prompt-config-panel'
-import { ModelSelector } from './model-selector'
 import { Sparkles, Settings, Loader2, Image as ImageIcon, Plus, MapPin, Check, FileText, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface Scene {
@@ -184,7 +183,6 @@ export function SceneDesigner({ project }: Props) {
   const [extracting, setExtracting] = useState(false)
   const [selectedPromptConfig, setSelectedPromptConfig] = useState<any>(null)
   const [selectedExtractPromptConfig, setSelectedExtractPromptConfig] = useState<any>(null)
-  const [selectedModel, setSelectedModel] = useState<string>('glm-5')
   const [generatingImage, setGeneratingImage] = useState(false)
   const [imageProgress, setImageProgress] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
@@ -951,15 +949,6 @@ export function SceneDesigner({ project }: Props) {
           </div>
         </TabsContent>
         <TabsContent value="config" className="space-y-6 mt-6">
-          {/* 模型设置 */}
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-            title="场景Prompt生成模型设置"
-            description="选择合适的 AI 模型进行场景Prompt生成"
-          />
-
-          {/* Prompt 配置 */}
           <PromptConfigPanel
             projectId={project.id}
             type="scene"

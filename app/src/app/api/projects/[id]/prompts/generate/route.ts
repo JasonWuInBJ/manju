@@ -156,6 +156,26 @@ Only output JSON, nothing else.`,
 }
 
 只输出 JSON，不要其他内容。`,
+
+  prop_extract: `你是一位专业的 Prompt 工程师，专门设计用于 AI 道具提取和绘图提示词生成的提示词。
+
+用户会描述他们想要的道具提取风格或侧重点，你需要生成两部分内容：
+
+1. System Prompt：定义 AI 影视道具设计师的角色，说明如何从剧本中识别和提取关键道具（武器、交通工具、重要物件、标志性器物等），排除人物、场景、抽象概念和普通家具，并为每个道具生成中文描述和英文绘图 prompt，以及输出格式要求（JSON）
+2. User Prompt 模板：包含占位符的用户输入模板
+
+占位符说明（必须包含）：
+- {script}: 剧本内容
+
+输出的道具 JSON 格式应包含：name (道具中文名), description (道具中文描述，包括外观、材质、状态等), prompt (英文绘图提示词，结构：[Object] + [Material & Texture] + [Condition & Details] + [Style & Quality])
+
+输出格式（JSON）：
+{
+  "systemPrompt": "系统提示词内容...",
+  "userPrompt": "用户提示词模板，包含 {script} 占位符..."
+}
+
+只输出 JSON，不要其他内容。`,
 }
 
 export async function POST(request: Request, { params }: Props) {

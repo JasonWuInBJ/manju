@@ -13,6 +13,8 @@ model Project {
   novelText             String?
   synopsis              String?
   defaultNegativePrompt String?       // 全局默认负面提示词
+  style                 String?       @default("cel-shaded anime style")
+  model                 String?       @default("glm-5")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   scripts               Script[]
@@ -22,6 +24,7 @@ model Project {
   promptConfigs         PromptConfig[]
   episodes              Episode[]
   videos                Video[]
+  stylePresets          StylePreset[]
 }
 
 model Script {
@@ -64,7 +67,6 @@ model Character {
   name             String
   role             String
   description      String
-  style            String  @default("cel-shaded")
   prompt           String?
   imageUrl         String?
   imageTaskId      String?  // 图片生成任务 ID（用于恢复轮询）
@@ -111,7 +113,7 @@ model PromptConfig {
   id        String   @id @default(uuid())
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  type      String   // 'script', 'character', 'scene', 'storyboard'
+  type      String   // 'script', 'character', 'scene', 'scene_extract', 'storyboard', 'video', 'image', 'prop', 'prop_extract'
   name      String   // 配置名称，如'默认剧本生成'
   systemPrompt String
   userPrompt String?
@@ -196,6 +198,23 @@ model Prop {
   imageTaskId String?  // 生图任务 ID（用于恢复轮询）
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model StylePreset {
+  id          String   @id @default(uuid())
+  name        String   // 显示名称
+  keywords    String   // 英文关键词
+  category    String   // 'popular' | 'artistic' | '3d'
+  icon        String   // emoji 图标
+  description String   // 中文描述
+  isDefault   Boolean  @default(false) // 系统预设标识
+  order       Int      @default(0) // 排序权重
+  projectId   String?  // null=全局预设，非null=项目自定义
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId, category])
 }
 
 model GlobalConfig {

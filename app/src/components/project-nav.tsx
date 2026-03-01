@@ -15,12 +15,13 @@ interface Props {
 }
 
 const steps = [
-  { name: '剧本', path: 'script', step: 1, color: 'violet' },
-  { name: '角色', path: 'character', step: 2, color: 'purple' },
-  { name: '场景', path: 'scene', step: 3, color: 'fuchsia' },
-  { name: '道具', path: 'prop', step: 4, color: 'amber' },
-  { name: '分镜', path: 'storyboard', step: 5, color: 'indigo' },
-  { name: '视频', path: 'video', step: 6, color: 'pink' },
+  { name: '设置', path: 'settings', step: 1, color: 'slate' },
+  { name: '剧本', path: 'script', step: 2, color: 'violet' },
+  { name: '角色', path: 'character', step: 3, color: 'purple' },
+  { name: '场景', path: 'scene', step: 4, color: 'fuchsia' },
+  { name: '道具', path: 'prop', step: 5, color: 'amber' },
+  { name: '分镜', path: 'storyboard', step: 6, color: 'indigo' },
+  { name: '视频', path: 'video', step: 7, color: 'pink' },
 ]
 
 export function ProjectNav({ project }: Props) {

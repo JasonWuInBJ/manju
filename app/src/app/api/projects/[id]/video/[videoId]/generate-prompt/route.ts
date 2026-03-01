@@ -79,18 +79,26 @@ export async function POST(request: Request, { params }: Props) {
         visualPrompt: true,
         negativePrompt: true,
         refCharacterIds: true,
+        refPropIds: true,
         audio: true,
       },
+    })
+
+    // Fetch props for this project
+    const props = await prisma.prop.findMany({
+      where: { projectId: id },
+      select: { id: true, name: true, description: true },
     })
 
     const prompt = generateVideoPrompt({
       scriptContent: script.content,
       characters,
+      props,
       shots,
       defaultNegativePrompt: project?.defaultNegativePrompt,
     })
 
-    console.log('[Generate Prompt] Generated prompt:', prompt.substring(0, 200))
+    console.log('[Generate Prompt] Generated prompt:', prompt)
 
     return NextResponse.json({
       prompt,
