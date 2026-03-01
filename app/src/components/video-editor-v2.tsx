@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, Video, Image as ImageIcon, Sparkles, ZoomIn, History, Settings, Wand2 } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Loader2, Video, Image as ImageIcon, Sparkles, ZoomIn, History, Settings, Wand2, AlertTriangle } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { PromptConfigPanel } from './prompt-config-panel'
@@ -48,6 +48,8 @@ interface Shot {
   visualPrompt: string
   negativePrompt?: string | null
   refCharacterIds?: string | null
+  refSceneIds?: string | null
+  refPropIds?: string | null
   audio: string
 }
 
@@ -169,6 +171,8 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     }
     return 'cinematic lighting, 8k, masterpiece, best quality, sharp focus'
   })
+  const [showMissingAssetsDialog, setShowMissingAssetsDialog] = useState(false)
+  const [missingAssets, setMissingAssets] = useState<{ characters: string[], scenes: string[], props: string[] }>({ characters: [], scenes: [], props: [] })
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state with video
@@ -304,15 +308,37 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
   const handleShotSelect = (shotId: string) => {
     setSelectedShotId(shotId === selectedShotId ? null : shotId)
-    // Auto-select characters referenced by this shot
+    // Auto-select characters, scenes, and props referenced by this shot
     const script = scripts.find(s => s.id === selectedScriptId)
     const shot = script?.shots?.find(s => s.id === shotId)
-    if (shot?.refCharacterIds) {
-      try {
-        const refIds = JSON.parse(shot.refCharacterIds) as string[]
-        setSelectedCharacterIds(refIds)
-        updateVideo({ selectedCharacterIds: refIds })
-      } catch {}
+
+    if (shot) {
+      // Auto-select characters
+      if (shot.refCharacterIds) {
+        try {
+          const refIds = JSON.parse(shot.refCharacterIds) as string[]
+          setSelectedCharacterIds(refIds)
+          updateVideo({ selectedCharacterIds: refIds })
+        } catch {}
+      }
+
+      // Auto-select scenes
+      if (shot.refSceneIds) {
+        try {
+          const refIds = JSON.parse(shot.refSceneIds) as string[]
+          setSelectedSceneIds(refIds)
+          updateVideo({ selectedSceneIds: refIds })
+        } catch {}
+      }
+
+      // Auto-select props
+      if (shot.refPropIds) {
+        try {
+          const refIds = JSON.parse(shot.refPropIds) as string[]
+          setSelectedPropIds(refIds)
+          updateVideo({ selectedPropIds: refIds })
+        } catch {}
+      }
     }
   }
 
@@ -424,12 +450,60 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     }
   }
 
+  // 检查缺失的素材（没有图片的）
+  const checkMissingAssets = () => {
+    const missing = {
+      characters: selectedCharacterIds.filter(id => {
+        const char = characters.find(c => c.id === id)
+        return char && !char.imageUrl
+      }).map(id => characters.find(c => c.id === id)?.name || id),
+      scenes: selectedSceneIds.filter(id => {
+        const scene = scenes.find(s => s.id === id)
+        return scene && !scene.imageUrl
+      }).map(id => scenes.find(s => s.id === id)?.name || id),
+      props: selectedPropIds.filter(id => {
+        const prop = props.find(p => p.id === id)
+        return prop && !prop.imageUrl
+      }).map(id => props.find(p => p.id === id)?.name || id),
+    }
+    return missing
+  }
+
   const handleGenerateCompositeImage = async () => {
+    console.log('[handleGenerateCompositeImage] 函数被调用')
     if (!video) return
     if (selectedCharacterIds.length === 0 && selectedSceneIds.length === 0) {
       toast.error('请至少选择一张角色或场景图片')
       return
     }
+
+    // 检查缺失素材
+    const missing = checkMissingAssets()
+    const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
+
+    console.log('[Missing Assets Check]', {
+      selectedCharacterIds,
+      selectedSceneIds,
+      selectedPropIds,
+      missing,
+      hasMissing,
+      characters: characters.map(c => ({ id: c.id, name: c.name, imageUrl: c.imageUrl })),
+      scenes: scenes.map(s => ({ id: s.id, name: s.name, imageUrl: s.imageUrl })),
+      props: props.map(p => ({ id: p.id, name: p.name, imageUrl: p.imageUrl })),
+    })
+
+    if (hasMissing) {
+      console.log('[Missing Assets] 显示确认对话框')
+      setMissingAssets(missing)
+      setShowMissingAssetsDialog(true)
+      return
+    }
+
+    await executeGenerateCompositeImage()
+  }
+
+  const executeGenerateCompositeImage = async () => {
+    if (!video) return
 
     setIsGenerating(true)
     try {
@@ -612,7 +686,24 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
       {/* Character/Scene Selection */}
       <Card>
-        <CardHeader><CardTitle>选择素材</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>选择素材</span>
+            {(() => {
+              const missing = checkMissingAssets()
+              const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
+              if (hasMissing) {
+                return (
+                  <div className="flex items-center gap-2 text-sm font-normal text-amber-600">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>部分素材缺少图片</span>
+                  </div>
+                )
+              }
+              return null
+            })()}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <Label className="text-xs">角色 ({selectedCharacterIds.length})</Label>
@@ -625,6 +716,11 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   }`}
                   onClick={() => toggleCharacterSelection(char.id)}
                 >
+                  {!char.imageUrl && selectedCharacterIds.includes(char.id) && (
+                    <div className="absolute top-1 right-1 z-10">
+                      <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                    </div>
+                  )}
                   <div className="h-16 bg-gray-50 flex items-center justify-center">
                     {char.imageUrl ? (
                       <img src={char.imageUrl} alt={char.name} className="w-full h-full object-contain" />
@@ -647,6 +743,11 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   }`}
                   onClick={() => toggleSceneSelection(scene.id)}
                 >
+                  {!scene.imageUrl && selectedSceneIds.includes(scene.id) && (
+                    <div className="absolute top-1 right-1 z-10">
+                      <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                    </div>
+                  )}
                   <div className="h-16 bg-gray-50 flex items-center justify-center">
                     {scene.imageUrl ? (
                       <img src={scene.imageUrl} alt={scene.name} className="w-full h-full object-contain" />
@@ -670,6 +771,11 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                     }`}
                     onClick={() => togglePropSelection(prop.id)}
                   >
+                    {!prop.imageUrl && selectedPropIds.includes(prop.id) && (
+                      <div className="absolute top-1 right-1 z-10">
+                        <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                      </div>
+                    )}
                     <div className="h-16 bg-gray-50 flex items-center justify-center">
                       {prop.imageUrl ? (
                         <img src={prop.imageUrl} alt={prop.name} className="w-full h-full object-contain" />
@@ -825,6 +931,64 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-3xl p-2">
           {previewImage && <img src={previewImage} alt="预览" className="w-full" />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Missing Assets Confirmation Dialog */}
+      <Dialog open={showMissingAssetsDialog} onOpenChange={setShowMissingAssetsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              部分素材缺少图片
+            </DialogTitle>
+            <DialogDescription>
+              以下素材尚未生成图片，继续生成可能影响合成效果：
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {missingAssets.characters.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-1">角色：</p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside">
+                  {missingAssets.characters.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {missingAssets.scenes.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-1">场景：</p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside">
+                  {missingAssets.scenes.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {missingAssets.props.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-1">道具：</p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside">
+                  {missingAssets.props.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMissingAssetsDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={async () => {
+              setShowMissingAssetsDialog(false)
+              await executeGenerateCompositeImage()
+            }}>
+              继续生成
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
