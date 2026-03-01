@@ -23,7 +23,6 @@ export async function POST(request: Request, { params }: Props) {
       name: body.name,
       role: body.role || 'supporting',
       description: body.description || '',
-      style: body.style || 'cel-shaded',
       prompt: body.prompt || null,
       characterGroupId: body.characterGroupId || null,
       costumeName: body.costumeName || null,

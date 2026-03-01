@@ -22,7 +22,6 @@ export async function PUT(request: Request, { params }: Props) {
       name: body.name,
       role: body.role,
       description: body.description,
-      style: body.style,
       prompt: body.prompt,
       imageUrl: body.imageUrl,
     },

@@ -63,6 +63,17 @@ export async function POST(request: Request, { params }: Props) {
 
     const userPrompt = `## 角色列表\n${characterList}\n\n## 剧本内容\n${content}`
 
+    const startTime = Date.now()
+    console.log('[Extract Costumes] 开始调用AI模型', {
+      projectId: id,
+      model: MODEL,
+      maxTokens: 4096,
+      charactersCount: characters.length,
+      contentLength: content.length,
+    })
+    console.log('[Extract Costumes] System Prompt:', SYSTEM_PROMPT)
+    console.log('[Extract Costumes] User Prompt:', userPrompt)
+
     const message = await retryWithBackoff(
       () => callLLM({ model: MODEL, systemPrompt: SYSTEM_PROMPT, userPrompt, maxTokens: 4096 }),
       {
@@ -72,8 +83,18 @@ export async function POST(request: Request, { params }: Props) {
       }
     )
 
+    console.log('[Extract Costumes] AI 原始返回:', message)
+    const duration = Date.now() - startTime
     const data = extractJsonFromThinkingModel(message)
     const costumes: { characterId: string; costumeName: string; description: string; prompt?: string }[] = data.costumes || []
+
+    console.log('[Extract Costumes] AI模型调用成功', {
+      projectId: id,
+      duration: `${duration}ms`,
+      durationSeconds: `${(duration / 1000).toFixed(2)}s`,
+      costumesCount: costumes.length,
+    })
+    console.log('[Extract Costumes] 解析后的JSON:', JSON.stringify(data, null, 2))
 
     // 为每套装扮创建新的 Character 记录
     const created = await Promise.all(
@@ -86,7 +107,6 @@ export async function POST(request: Request, { params }: Props) {
             name: parent.name,
             role: parent.role,
             description: parent.description,
-            style: parent.style,
             prompt: parent.prompt ? `${parent.prompt}, ${c.prompt || ''}` : (c.prompt || null),
             characterGroupId: parent.characterGroupId || parent.id,
             costumeName: c.costumeName,

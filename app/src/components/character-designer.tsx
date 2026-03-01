@@ -320,8 +320,6 @@ export function CharacterDesigner({ project }: Props) {
     if (!selected) return
     setLoading(true)
     try {
-      const styleDesc = STYLE_PROMPTS[selected.style] || STYLE_PROMPTS['cel-shaded']
-
       let systemPrompt = DEFAULT_SYSTEM_PROMPT
       let userPrompt = DEFAULT_USER_PROMPT_TEMPLATE
 
@@ -337,7 +335,6 @@ export function CharacterDesigner({ project }: Props) {
         .replace('{name}', selected.name)
         .replace('{role}', selected.role)
         .replace('{description}', selected.description)
-        .replace('{style}', styleDesc)
         .replace('{script}', scriptContent)
 
       const res = await fetch(`/api/projects/${project.id}/characters/${selected.id}/prompt`, {
@@ -1388,19 +1385,6 @@ export function CharacterDesigner({ project }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {ROLE_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-sm font-medium mb-1.5 block">风格</Label>
-              <Select value={form.style} onValueChange={v => setForm({...form, style: v})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLE_OPTIONS.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>

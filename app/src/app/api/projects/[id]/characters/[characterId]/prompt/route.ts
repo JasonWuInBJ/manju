@@ -44,7 +44,6 @@ export async function POST(request: Request, { params }: Props) {
       characterName: character.name,
       model: MODEL,
       maxTokens: 2048,
-      style: character.style,
     })
     console.log('[Character Prompt] System Prompt:', finalSystemPrompt)
     console.log('[Character Prompt] User Prompt:', finalUserPrompt)

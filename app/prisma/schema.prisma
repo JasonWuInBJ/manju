@@ -57,6 +57,7 @@ model Shot {
   negativePrompt   String? // 镜头级负面提示词，可选
   refCharacterIds  String? // JSON数组，引用的角色ID，可选
   refPropIds       String? // JSON数组，引用的道具ID，可选
+  refSceneIds      String? // JSON数组，引用的场景ID，可选
   audio            String  // 中文，对白/音效
 }
 

@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: Props) {
 export async function POST(request: Request, { params }: Props) {
   const { id: projectId, videoId } = await params
   const body = await request.json()
-  const { type, duration, aspectRatio, prompt } = body
+  const { type, duration, aspectRatio, prompt, propIds } = body
 
   console.log('[Asset Create] Starting', {
     projectId,
@@ -66,7 +66,7 @@ export async function POST(request: Request, { params }: Props) {
 
     if (type === 'composite_image') {
       return await handleCompositeImageGeneration(
-        projectId, videoId, video, prompt, nextVersion, aspectRatio
+        projectId, videoId, video, prompt, nextVersion, aspectRatio, propIds
       )
     } else if (type === 'video') {
       return await handleVideoGeneration(
@@ -88,7 +88,8 @@ async function handleCompositeImageGeneration(
   video: { selectedCharacterIds: string | null; selectedSceneIds: string | null; script: { content: string } | null },
   customPrompt: string | undefined,
   version: number,
-  aspectRatio: string | undefined
+  aspectRatio: string | undefined,
+  propIds: string[] | undefined
 ) {
   // Get API key from config
   const apiKey = await getRunningHubApiKey()
@@ -96,6 +97,7 @@ async function handleCompositeImageGeneration(
   // Parse selected IDs
   const characterIds = video.selectedCharacterIds ? JSON.parse(video.selectedCharacterIds) : []
   const sceneIds = video.selectedSceneIds ? JSON.parse(video.selectedSceneIds) : []
+  const selectedPropIds = propIds || []
 
   if (characterIds.length === 0 && sceneIds.length === 0) {
     return NextResponse.json(
@@ -115,13 +117,18 @@ async function handleCompositeImageGeneration(
     select: { id: true, name: true, description: true, imageUrl: true },
   })
 
-  // Fetch props
-  const props = await prisma.prop.findMany({
+  // Fetch selected props (with images) or all props (for prompt context)
+  const propsWithImages = selectedPropIds.length > 0
+    ? await prisma.prop.findMany({
+        where: { id: { in: selectedPropIds }, projectId },
+        select: { id: true, name: true, description: true, imageUrl: true },
+      })
+    : []
+
+  const allProps = await prisma.prop.findMany({
     where: { projectId },
     select: { name: true, description: true },
   })
-
-  console.log('[Asset Create] Props:', JSON.stringify(props.map(p => p.name)))
 
   // Collect image URLs
   const imageUrls: string[] = []
@@ -132,6 +139,9 @@ async function handleCompositeImageGeneration(
   sceneIds.forEach((id: string) => {
     const scene = scenes.find(s => s.id === id)
     if (scene?.imageUrl) imageUrls.push(scene.imageUrl)
+  })
+  propsWithImages.forEach(prop => {
+    if (prop.imageUrl) imageUrls.push(prop.imageUrl)
   })
 
   if (imageUrls.length === 0) {
@@ -149,7 +159,7 @@ async function handleCompositeImageGeneration(
     promptToUse = generateCompositeImagePrompt({
       characters,
       scenes,
-      props,
+      props: allProps,
       script: video.script || undefined,
       style: 'cel-shaded anime style',
     })

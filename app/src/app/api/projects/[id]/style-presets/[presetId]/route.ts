@@ -4,10 +4,10 @@ import { prisma } from '@/lib/db'
 // 更新项目自定义预设
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; presetId: string } }
+  { params }: { params: Promise<{ id: string; presetId: string }> }
 ) {
   try {
-    const { id: projectId, presetId } = params
+    const { id: projectId, presetId } = await params
     const body = await request.json()
 
     // 检查预设是否存在且属于该项目
@@ -50,10 +50,10 @@ export async function PATCH(
 // 删除项目自定义预设
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; presetId: string } }
+  { params }: { params: Promise<{ id: string; presetId: string }> }
 ) {
   try {
-    const { id: projectId, presetId } = params
+    const { id: projectId, presetId } = await params
 
     // 检查预设是否存在且属于该项目
     const existing = await prisma.stylePreset.findFirst({

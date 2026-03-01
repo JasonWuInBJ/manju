@@ -4,10 +4,10 @@ import { prisma } from '@/lib/db'
 // 获取项目的所有风格预设（系统 + 项目自定义）
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
 
     const presets = await prisma.stylePreset.findMany({
       where: {
@@ -26,10 +26,10 @@ export async function GET(
 // 创建项目自定义预设
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
     const body = await request.json()
 
     const { name, keywords, category, icon, description } = body

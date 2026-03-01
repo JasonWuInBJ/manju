@@ -23,10 +23,22 @@ interface Shot {
   visualPrompt: string
   negativePrompt?: string | null
   refCharacterIds?: string | null
+  refPropIds?: string | null
+  refSceneIds?: string | null
   audio: string
 }
 
 interface CharacterRef {
+  id: string
+  name: string
+}
+
+interface SceneRef {
+  id: string
+  name: string
+}
+
+interface PropRef {
   id: string
   name: string
 }
@@ -45,6 +57,8 @@ interface Project {
   defaultNegativePrompt?: string | null
   scripts: Script[]
   characters: CharacterRef[]
+  scenes: SceneRef[]
+  props: PropRef[]
 }
 
 interface Props {
@@ -59,9 +73,14 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的AI视频分镜师。根据�
 ## 可用场景资产
 {scenes}
 
+## 可用道具资产
+{props}
+
 ## 输出要求
 - visual_prompt 必须为英文，格式：主体 + 动作 + 环境 + 光影 + 镜头语言，要求高质量、电影感
 - ref_character_ids 引用上方角色ID（数组），系统会自动将角色外貌描述注入到视频模型的prompt中
+- ref_scene_ids 引用上方场景ID（数组），系统会自动将场景环境描述注入到视频模型的prompt中
+- ref_prop_ids 引用上方道具ID（数组），系统会自动将道具描述注入到视频模型的prompt中
 - camera_shot_type 使用标准值：wide, medium, close, extreme-close
 - camera_movement 使用标准值：static, slow_push_in, slow_pull_out, pan_left, pan_right, tilt_up, tilt_down, dynamic_follow, slight_handheld_shake, orbit
 - duration 单位为秒，建议 3-6 秒/镜头
@@ -82,6 +101,8 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的AI视频分镜师。根据�
       "visual_prompt": "English visual prompt for video model",
       "negative_prompt": "optional negative prompt",
       "ref_character_ids": ["character_id"],
+      "ref_scene_ids": ["scene_id"],
+      "ref_prop_ids": ["prop_id"],
       "audio": "对白或音效"
     }
   ]
@@ -118,6 +139,8 @@ interface ShotData {
   visualPrompt: string
   negativePrompt?: string | null
   refCharacterIds?: string | null
+  refPropIds?: string | null
+  refSceneIds?: string | null
   audio: string
 }
 
@@ -135,7 +158,7 @@ function computeTimeSlot(shots: ShotData[], index: number): string {
   return `${fmt(start)}-${fmt(end)}`
 }
 
-function parseRefCharacterIds(json: string | null | undefined): string[] {
+function parseRefIds(json: string | null | undefined): string[] {
   if (!json) return []
   try { return JSON.parse(json) } catch { return [] }
 }
@@ -157,6 +180,8 @@ export function StoryboardEditor({ project }: Props) {
         visualPrompt: s.visualPrompt,
         negativePrompt: s.negativePrompt,
         refCharacterIds: s.refCharacterIds,
+        refPropIds: s.refPropIds,
+        refSceneIds: s.refSceneIds,
         audio: s.audio,
       })) || []
     })
@@ -216,6 +241,12 @@ export function StoryboardEditor({ project }: Props) {
           refCharacterIds: s.ref_character_ids
             ? JSON.stringify(s.ref_character_ids)
             : s.refCharacterIds || null,
+          refPropIds: s.ref_prop_ids
+            ? JSON.stringify(s.ref_prop_ids)
+            : s.refPropIds || null,
+          refSceneIds: s.ref_scene_ids
+            ? JSON.stringify(s.ref_scene_ids)
+            : s.refSceneIds || null,
           audio: s.audio,
         }))
         setShotsMap(prev => ({ ...prev, [activeScriptId]: mapped }))
@@ -266,6 +297,8 @@ export function StoryboardEditor({ project }: Props) {
       visualPrompt: '',
       negativePrompt: null,
       refCharacterIds: null,
+      refPropIds: null,
+      refSceneIds: null,
       audio: '',
     }]
     setShotsMap(prev => ({ ...prev, [activeScriptId]: newShots }))
@@ -277,11 +310,27 @@ export function StoryboardEditor({ project }: Props) {
   }
 
   const toggleCharacterRef = (shotIndex: number, charId: string) => {
-    const current = parseRefCharacterIds(shots[shotIndex].refCharacterIds)
+    const current = parseRefIds(shots[shotIndex].refCharacterIds)
     const next = current.includes(charId)
       ? current.filter(id => id !== charId)
       : [...current, charId]
     updateShot(shotIndex, 'refCharacterIds', next.length > 0 ? JSON.stringify(next) : null)
+  }
+
+  const togglePropRef = (shotIndex: number, propId: string) => {
+    const current = parseRefIds(shots[shotIndex].refPropIds)
+    const next = current.includes(propId)
+      ? current.filter(id => id !== propId)
+      : [...current, propId]
+    updateShot(shotIndex, 'refPropIds', next.length > 0 ? JSON.stringify(next) : null)
+  }
+
+  const toggleSceneRef = (shotIndex: number, sceneId: string) => {
+    const current = parseRefIds(shots[shotIndex].refSceneIds)
+    const next = current.includes(sceneId)
+      ? current.filter(id => id !== sceneId)
+      : [...current, sceneId]
+    updateShot(shotIndex, 'refSceneIds', next.length > 0 ? JSON.stringify(next) : null)
   }
 
   const totalDuration = shots.reduce((sum, s) => sum + s.duration, 0)
@@ -399,7 +448,9 @@ export function StoryboardEditor({ project }: Props) {
             <div className="space-y-3">
               {shots.map((shot, index) => {
                 const isExpanded = expandedShots.has(index)
-                const refIds = parseRefCharacterIds(shot.refCharacterIds)
+                const refCharacterIds = parseRefIds(shot.refCharacterIds)
+                const refPropIds = parseRefIds(shot.refPropIds)
+                const refSceneIds = parseRefIds(shot.refSceneIds)
                 return (
                   <Card key={index} className="border border-slate-200 dark:border-slate-800">
                     <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-slate-800">
@@ -417,11 +468,27 @@ export function StoryboardEditor({ project }: Props) {
                             {CAMERA_MOVEMENT_OPTIONS.find(o => o.value === shot.cameraMovement)?.label || shot.cameraMovement}
                           </Badge>
                           <span className="text-xs text-slate-400 font-mono">{computeTimeSlot(shots, index)}</span>
-                          {refIds.length > 0 && refIds.map(id => {
+                          {refCharacterIds.length > 0 && refCharacterIds.map(id => {
                             const char = project.characters.find(c => c.id === id)
                             return char ? (
                               <Badge key={id} variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
                                 {char.name}
+                              </Badge>
+                            ) : null
+                          })}
+                          {refSceneIds.length > 0 && refSceneIds.map(id => {
+                            const scene = project.scenes.find(s => s.id === id)
+                            return scene ? (
+                              <Badge key={id} variant="outline" className="text-xs bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400">
+                                {scene.name}
+                              </Badge>
+                            ) : null
+                          })}
+                          {refPropIds.length > 0 && refPropIds.map(id => {
+                            const prop = project.props.find(p => p.id === id)
+                            return prop ? (
+                              <Badge key={id} variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400">
+                                {prop.name}
                               </Badge>
                             ) : null
                           })}
@@ -516,12 +583,56 @@ export function StoryboardEditor({ project }: Props) {
                                 key={char.id}
                                 onClick={() => toggleCharacterRef(index, char.id)}
                                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                                  refIds.includes(char.id)
+                                  refCharacterIds.includes(char.id)
                                     ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
                                 }`}
                               >
                                 {char.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 引用场景 */}
+                      {project.scenes.length > 0 && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-500">引用场景</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {project.scenes.map(scene => (
+                              <button
+                                key={scene.id}
+                                onClick={() => toggleSceneRef(index, scene.id)}
+                                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  refSceneIds.includes(scene.id)
+                                    ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                {scene.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 引用道具 */}
+                      {project.props.length > 0 && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-500">引用道具</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {project.props.map(prop => (
+                              <button
+                                key={prop.id}
+                                onClick={() => togglePropRef(index, prop.id)}
+                                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  refPropIds.includes(prop.id)
+                                    ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                {prop.name}
                               </button>
                             ))}
                           </div>

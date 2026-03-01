@@ -18,7 +18,10 @@ export async function POST(request: Request, { params }: Props) {
     // If custom prompts provided, use them directly with AI
     if (systemPrompt && userPrompt) {
       console.log('[Generate Prompt] Using custom prompts')
+      console.log('[Generate Prompt] System Prompt:', systemPrompt)
+      console.log('[Generate Prompt] User Prompt:', userPrompt)
 
+      const startTime = Date.now()
       const generatedPrompt = await callLLM({
         model: MODEL,
         systemPrompt,
@@ -26,7 +29,15 @@ export async function POST(request: Request, { params }: Props) {
         maxTokens: 1024,
       })
 
-      console.log('[Generate Prompt] Generated prompt with custom config:', generatedPrompt.substring(0, 200))
+      const duration = Date.now() - startTime
+      console.log('[Generate Prompt] AI 原始返回:', generatedPrompt)
+      console.log('[Generate Prompt] AI模型调用成功', {
+        videoId,
+        scriptId,
+        duration: `${duration}ms`,
+        durationSeconds: `${(duration / 1000).toFixed(2)}s`,
+        promptLength: generatedPrompt.length,
+      })
 
       return NextResponse.json({
         prompt: generatedPrompt,

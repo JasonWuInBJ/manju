@@ -59,6 +59,8 @@ export async function POST(request: Request, { params }: Props) {
       novelTextLength: novelText?.length || 0,
       hasSynopsis: !!synopsis,
     })
+    console.log('[Script Generate] System Prompt:', finalSystemPrompt)
+    console.log('[Script Generate] User Prompt:', finalUserPrompt)
 
     const rawText = await retryWithBackoff(
       () => callLLM({
@@ -79,6 +81,7 @@ export async function POST(request: Request, { params }: Props) {
       }
     )
 
+    console.log('[Script Generate] AI 原始返回:', rawText)
     const duration = Date.now() - startTime
     const content = extractTextFromThinkingModel(rawText)
 
@@ -88,6 +91,7 @@ export async function POST(request: Request, { params }: Props) {
       duration: `${duration}ms`,
       contentLength: content.length,
     })
+    console.log('[Script Generate] 提取后的内容:', content)
 
     // 从剧本内容中提取标题（第一行通常是标题）
     const titleMatch = content.match(/^#\s*(.+)$/m)

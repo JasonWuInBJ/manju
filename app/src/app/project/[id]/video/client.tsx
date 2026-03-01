@@ -18,6 +18,13 @@ interface Scene {
   imageUrl: string | null
 }
 
+interface Prop {
+  id: string
+  name: string
+  description: string
+  imageUrl: string | null
+}
+
 interface Shot {
   id: string
   order: number
@@ -45,6 +52,7 @@ interface Project {
   scripts: Script[]
   characters: Character[]
   scenes: Scene[]
+  props: Prop[]
 }
 
 interface VideoAsset {
@@ -100,6 +108,7 @@ export function VideoPageClient({ project }: { project: Project }) {
           scripts={project.scripts}
           characters={project.characters}
           scenes={project.scenes}
+          props={project.props}
           onVideoUpdate={handleVideoUpdate}
         />
       </div>

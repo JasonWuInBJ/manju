@@ -76,6 +76,14 @@ export async function POST(request: Request, { params }: Props) {
       ? customUserPrompt.replace('{script}', content)
       : `请从以下剧本中提取道具资产：\n\n${content}`
 
+    const startTime = Date.now()
+    console.log('[Props Extract] 开始调用AI模型', {
+      projectId: id,
+      scriptId,
+      model: MODEL,
+      maxTokens: 4096,
+      contentLength: content?.length || 0,
+    })
     console.log('[Props Extract] System Prompt:', effectiveSystemPrompt)
     console.log('[Props Extract] User Prompt:', effectiveUserPrompt)
 
@@ -84,7 +92,18 @@ export async function POST(request: Request, { params }: Props) {
       { maxRetries: 3, initialDelay: 2000, onRetry: (error, attempt) => console.log(`[Props Extract] 重试第 ${attempt} 次`, error.message) }
     )
 
+    console.log('[Props Extract] AI 原始返回:', message)
+    const duration = Date.now() - startTime
     const data = JSON.parse(extractJSON(message))
+
+    console.log('[Props Extract] AI模型调用成功', {
+      projectId: id,
+      scriptId,
+      duration: `${duration}ms`,
+      durationSeconds: `${(duration / 1000).toFixed(2)}s`,
+      propsCount: data.props?.length || 0,
+    })
+    console.log('[Props Extract] 解析后的JSON:', JSON.stringify(data, null, 2))
 
     // 删除现有道具（如果指定了 scriptId 则只删除项目级，否则全删）
     await prisma.prop.deleteMany({ where: { projectId: id } })

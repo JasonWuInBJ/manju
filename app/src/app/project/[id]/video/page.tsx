@@ -28,6 +28,10 @@ export default async function VideoPage({ params }: Props) {
         where: { imageUrl: { not: null } },
         orderBy: { createdAt: 'asc' },
       },
+      props: {
+        where: { imageUrl: { not: null } },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
 

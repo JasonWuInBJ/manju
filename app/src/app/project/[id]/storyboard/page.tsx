@@ -13,6 +13,8 @@ export default async function StoryboardPage({ params }: Props) {
     include: {
       scripts: { include: { shots: true } },
       characters: { select: { id: true, name: true } },
+      scenes: { select: { id: true, name: true } },
+      props: { select: { id: true, name: true } },
     },
   })
 

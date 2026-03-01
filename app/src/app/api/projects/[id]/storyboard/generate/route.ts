@@ -38,6 +38,7 @@ ${propSection}
 ## 输出要求
 - visual_prompt 必须为英文，格式：主体 + 动作 + 环境 + 光影 + 镜头语言，要求高质量、电影感
 - ref_character_ids 引用上方角色ID（数组），系统会自动将角色外貌描述注入到视频模型的prompt中
+- ref_scene_ids 引用上方场景ID（数组），系统会自动将场景环境描述注入到视频模型的prompt中
 - ref_prop_ids 引用上方道具ID（数组），系统会自动将道具描述注入到视频模型的prompt中
 - camera_shot_type 使用标准值：wide, medium, close, extreme-close
 - camera_movement 使用标准值：static, slow_push_in, slow_pull_out, pan_left, pan_right, tilt_up, tilt_down, dynamic_follow, slight_handheld_shake, orbit
@@ -59,6 +60,7 @@ ${propSection}
       "visual_prompt": "English visual prompt for video model",
       "negative_prompt": "optional negative prompt",
       "ref_character_ids": ["character_id"],
+      "ref_scene_ids": ["scene_id"],
       "ref_prop_ids": ["prop_id"],
       "audio": "对白或音效"
     }
@@ -76,6 +78,7 @@ interface ShotFromAI {
   visual_prompt: string
   negative_prompt?: string
   ref_character_ids?: string[]
+  ref_scene_ids?: string[]
   ref_prop_ids?: string[]
   audio: string
 }
@@ -132,7 +135,10 @@ export async function POST(request: Request, { params }: Props) {
       model: finalModel,
       charactersCount: characters.length,
       scenesCount: scenes.length,
+      propsCount: props.length,
     })
+    console.log('[Storyboard Generate] System Prompt:', finalSystemPrompt)
+    console.log('[Storyboard Generate] User Prompt:', finalUserPrompt)
 
     const message = await retryWithBackoff(
       () => callLLM({
@@ -152,6 +158,7 @@ export async function POST(request: Request, { params }: Props) {
       }
     )
 
+    console.log('[Storyboard Generate] AI 原始返回:', message)
     const duration = Date.now() - startTime
     const data = extractJsonFromThinkingModel(message)
 
@@ -159,6 +166,7 @@ export async function POST(request: Request, { params }: Props) {
       duration: `${(duration / 1000).toFixed(2)}s`,
       shotsCount: data.shots?.length || 0,
     })
+    console.log('[Storyboard Generate] 解析后的 JSON 数据:', JSON.stringify(data, null, 2))
 
     // 确定目标 scriptId
     let targetScriptId = scriptId
@@ -188,6 +196,7 @@ export async function POST(request: Request, { params }: Props) {
             visualPrompt: s.visual_prompt,
             negativePrompt: s.negative_prompt || null,
             refCharacterIds: s.ref_character_ids ? JSON.stringify(s.ref_character_ids) : null,
+            refSceneIds: s.ref_scene_ids ? JSON.stringify(s.ref_scene_ids) : null,
             refPropIds: s.ref_prop_ids ? JSON.stringify(s.ref_prop_ids) : null,
             audio: s.audio,
           },

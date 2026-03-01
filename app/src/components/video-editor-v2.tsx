@@ -30,6 +30,13 @@ interface Scene {
   weather?: string | null
 }
 
+interface Prop {
+  id: string
+  name: string
+  description: string
+  imageUrl: string | null
+}
+
 interface Shot {
   id: string
   order: number
@@ -84,6 +91,7 @@ interface Props {
   scripts: Script[]
   characters: Character[]
   scenes: Scene[]
+  props: Prop[]
   onVideoUpdate: (video: VideoRecord) => void
 }
 
@@ -139,10 +147,11 @@ const DEFAULT_IMAGE_USER_PROMPT = `角色信息：
 分镜指令：
 {shots}`
 
-export function VideoEditor({ projectId, video, scripts, characters, scenes, onVideoUpdate }: Props) {
+export function VideoEditor({ projectId, video, scripts, characters, scenes, props, onVideoUpdate }: Props) {
   const [selectedScriptId, setSelectedScriptId] = useState<string>('')
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([])
   const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>([])
+  const [selectedPropIds, setSelectedPropIds] = useState<string[]>([])
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
   const [videoPrompt, setVideoPrompt] = useState<string>('')
   const [duration, setDuration] = useState<string>('15')
@@ -287,6 +296,12 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, onV
     updateVideo({ selectedSceneIds: newIds })
   }
 
+  const togglePropSelection = (id: string) => {
+    setSelectedPropIds(prev =>
+      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+    )
+  }
+
   const handleShotSelect = (shotId: string) => {
     setSelectedShotId(shotId === selectedShotId ? null : shotId)
     // Auto-select characters referenced by this shot
@@ -424,6 +439,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, onV
         body: JSON.stringify({
           type: 'composite_image',
           aspectRatio,
+          propIds: selectedPropIds,
           ...(compositePrompt.trim() ? { prompt: compositePrompt } : {}),
         }),
       })
@@ -641,6 +657,30 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, onV
               ))}
             </div>
           </div>
+
+          {props.length > 0 && (
+            <div>
+              <Label className="text-xs">道具 ({selectedPropIds.length})</Label>
+              <div className="grid grid-cols-6 gap-2 mt-2">
+                {props.map(prop => (
+                  <div
+                    key={prop.id}
+                    className={`relative border-2 rounded cursor-pointer ${
+                      selectedPropIds.includes(prop.id) ? 'border-orange-500' : 'border-gray-200'
+                    }`}
+                    onClick={() => togglePropSelection(prop.id)}
+                  >
+                    <div className="h-16 bg-gray-50 flex items-center justify-center">
+                      {prop.imageUrl ? (
+                        <img src={prop.imageUrl} alt={prop.name} className="w-full h-full object-contain" />
+                      ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                    </div>
+                    <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{prop.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

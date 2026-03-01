@@ -84,7 +84,6 @@ export async function POST(request: Request, { params }: Props) {
             name: char.name,
             role: char.role || 'supporting',
             description: char.description || '',
-            style: 'cel-shaded',
           },
         })
         // 用自身 ID 作为 groupId
