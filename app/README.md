@@ -1,36 +1,264 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 漫剧工坊 - AI漫剧视频生成器
 
-## Getting Started
+一款基于 AI 的漫剧视频生成工具，支持从剧本到视频的全流程自动化创作。
 
-First, run the development server:
+## 功能概览
+
+- **剧本管理**：导入网络小说，AI 自动改编为短剧剧本
+- **角色设计**：创建角色形象，AI 生成角色参考图
+- **场景设计**：设计场景背景，AI 生成场景参考图
+- **道具管理**：提取剧本道具，AI 生成道具参考图
+- **分镜编辑**：AI 自动生成分镜脚本，支持手动调整
+- **视频生成**：支持单图模式（4宫格合成）和多图模式（多素材直传）
+
+---
+
+## 快速开始
+
+### 方式一：Docker 部署（推荐）
+
+适合空白环境，无需安装 Node.js，一键启动。
+
+**前置要求：** 安装 [Docker](https://docs.docker.com/get-docker/) 和 [Docker Compose](https://docs.docker.com/compose/install/)
+
+**1. 克隆项目**
+
+```bash
+git clone <repo_url>
+cd comic-video-generator/app
+```
+
+**2. 启动服务**
+
+```bash
+docker compose up -d
+```
+
+访问 [http://localhost:3000](http://localhost:3000) 开始使用。
+
+> API Key 无需提前配置，启动后在页面「系统设置」中填写即可。
+
+**常用命令：**
+
+```bash
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+
+# 重新构建
+docker compose up -d --build
+```
+
+> 数据库文件保存在 Docker Volume `sqlite_data` 中，重启不会丢失数据。
+
+---
+
+### 方式二：本地开发
+
+**环境要求：** Node.js 18+
+
+**安装依赖**
+
+```bash
+npm install
+```
+
+**配置环境变量**
+
+```bash
+cp .env.example .env.local
+# 编辑 .env.local 填写 API Key
+```
+
+**初始化数据库**
+
+```bash
+npx prisma db push
+npx prisma generate
+```
+
+**启动开发服务器**
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 [http://localhost:3000](http://localhost:3000) 开始使用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 使用流程
 
-## Learn More
+### 第一步：创建项目
 
-To learn more about Next.js, take a look at the following resources:
+1. 打开首页，点击「新建项目」
+2. 输入项目名称和简介
+3. 进入项目工作台
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 第二步：编写剧本
 
-## Deploy on Vercel
+进入「剧本」页面：
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. 粘贴网络小说原文到输入框
+2. 点击「AI 生成剧本」，系统自动改编为短剧格式
+3. 可手动编辑剧本内容
+4. 支持多集管理，每集独立剧本
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**剧本格式说明：**
+- `# 第X集 标题` - 集标题
+- `## 场号-场景名` - 场景标记
+- `【画面】` - 画面描述
+- `角色名："对白"` - 对白
+- `角色名 OS："独白"` - 内心独白
+
+---
+
+### 第三步：设计角色
+
+进入「角色」页面：
+
+1. 点击「从剧本提取角色」，AI 自动识别剧本中的角色
+2. 为每个角色填写外貌描述和 Prompt
+3. 点击「生成图片」，AI 生成角色参考图
+4. 支持「提取换装」功能，为角色创建不同服装版本
+
+**角色字段说明：**
+- **名称**：角色中文名
+- **角色定位**：主角/配角/反派等
+- **描述**：角色外貌、性格的中文描述
+- **Prompt**：用于 AI 绘图的英文提示词
+
+---
+
+### 第四步：设计场景
+
+进入「场景」页面：
+
+1. 点击「从剧本提取场景」，AI 自动识别剧本中的场景
+2. 为每个场景填写描述和 Prompt
+3. 点击「生成图片」，AI 生成场景参考图
+
+**场景字段说明：**
+- **名称**：场景中文名
+- **描述**：场景环境的中文描述
+- **氛围/时间/天气**：场景的环境参数
+- **Prompt**：用于 AI 绘图的英文提示词
+
+---
+
+### 第五步：管理道具
+
+进入「道具」页面：
+
+1. 点击「从剧本提取道具」，AI 自动识别剧本中的重要道具
+2. 为每个道具填写描述和 Prompt
+3. 点击「生成图片」，AI 生成道具参考图
+
+---
+
+### 第六步：编辑分镜
+
+进入「分镜」页面：
+
+1. 选择剧本，点击「AI 生成分镜」
+2. AI 自动将剧本拆解为逐镜头的分镜脚本
+3. 每个镜头包含：
+   - **景别**：wide / medium / close / extreme-close
+   - **运镜**：static / slow_push_in / pan_left 等
+   - **场景描述**：中文场景说明
+   - **角色动作**：中文动作描述
+   - **视觉 Prompt**：英文绘图提示词
+   - **关联角色/场景/道具**：素材关联
+
+4. 可手动调整每个镜头的参数
+5. 支持为镜头关联角色、场景、道具素材
+
+---
+
+### 第七步：生成视频
+
+进入「视频」页面，支持两种生成模式：
+
+#### 单图模式（推荐）
+
+> 工作流程：选择素材 → 合成4宫格分镜图 → 生成视频
+
+1. 在左侧选择要生成的视频镜头
+2. 切换到「单图模式」Tab
+3. 选择 Shot，系统自动关联角色、场景、道具素材
+4. **步骤 1**：点击「生成 Prompt」或「AI 优化」生成合成图提示词
+5. 点击「生成4宫格合成图」，将素材合成为分镜参考图
+6. **步骤 2**：点击「从剧本自动生成」生成视频 Prompt
+7. 调整时长和宽高比，点击「生成视频」
+
+#### 多图模式
+
+> 工作流程：选择素材 → 直接生成视频
+
+1. 切换到「多图模式」Tab
+2. 选择 Shot，系统自动关联素材
+3. 填写视频 Prompt
+4. 调整时长和宽高比，点击「生成视频」
+
+---
+
+## 项目设置
+
+进入「设置」页面可配置：
+
+- **项目风格**：全局画风设定
+- **默认负面提示词**：全局负面 Prompt
+- **AI 模型**：选择使用的 AI 模型
+
+---
+
+## Prompt 配置
+
+每个生成环节都支持自定义 Prompt 模板：
+
+- 点击「配置」Tab 进入 Prompt 配置面板
+- 支持自定义 System Prompt 和 User Prompt
+- 支持保存多套配置方案，随时切换
+
+**Prompt 变量说明：**
+
+| 变量 | 说明 |
+|------|------|
+| `{script}` | 剧本内容 |
+| `{characters}` | 角色列表 |
+| `{scenes}` | 场景列表 |
+| `{shots}` | 分镜列表 |
+| `{duration}` | 视频时长 |
+| `{aspectRatio}` | 宽高比 |
+
+---
+
+## 技术栈
+
+- **框架**：Next.js 15 (App Router)
+- **数据库**：SQLite + Prisma ORM
+- **UI**：Tailwind CSS + shadcn/ui
+- **AI**：Anthropic Claude API
+- **语言**：TypeScript
+
+---
+
+## 开发说明
+
+```bash
+# 开发模式
+npm run dev
+
+# 构建
+npm run build
+
+# 数据库迁移
+npx prisma db push
+
+# 查看数据库
+npx prisma studio
+```
