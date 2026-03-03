@@ -173,6 +173,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   })
   const [showMissingAssetsDialog, setShowMissingAssetsDialog] = useState(false)
   const [missingAssets, setMissingAssets] = useState<{ characters: string[], scenes: string[], props: string[] }>({ characters: [], scenes: [], props: [] })
+  const [generationMode, setGenerationMode] = useState<'single' | 'multi'>('single')
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state with video
@@ -313,6 +314,11 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     const shot = script?.shots?.find(s => s.id === shotId)
 
     if (shot) {
+      // Set video duration to match shot duration
+      if (shot.duration) {
+        setDuration(String(Math.round(shot.duration)))
+      }
+
       // Auto-select characters
       if (shot.refCharacterIds) {
         try {
@@ -432,7 +438,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
         .replace('{scenes}', scnsText)
         .replace('{shots}', shotsText)
 
-      const res = await fetch(`/api/projects/${projectId}/videos/${video?.id}/generate-prompt`, {
+      const res = await fetch(`/api/projects/${projectId}/video/${video?.id}/generate-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptId: selectedScriptId, systemPrompt, userPrompt }),
@@ -538,10 +544,13 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   const handleGenerateVideo = async () => {
     if (!video) return
 
-    const compositeImage = video.assets?.find(a => a.type === 'composite_image' && a.url)
-    if (!compositeImage?.url) {
-      toast.error('请先生成合成图')
-      return
+    // 单图模式需要合成图
+    if (generationMode === 'single') {
+      const compositeImage = video.assets?.find(a => a.type === 'composite_image' && a.url)
+      if (!compositeImage?.url) {
+        toast.error('请先生成合成图')
+        return
+      }
     }
 
     if (!videoPrompt.trim()) {
@@ -553,6 +562,38 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     try {
       await updateVideo({ prompt: videoPrompt })
 
+      // TODO: 多图模式API调用
+      if (generationMode === 'multi') {
+        // 收集所有选中素材的图片URL
+        const imageUrls: string[] = []
+
+        selectedCharacterIds.forEach(id => {
+          const char = characters.find(c => c.id === id)
+          if (char?.imageUrl) imageUrls.push(char.imageUrl)
+        })
+
+        selectedSceneIds.forEach(id => {
+          const scene = scenes.find(s => s.id === id)
+          if (scene?.imageUrl) imageUrls.push(scene.imageUrl)
+        })
+
+        selectedPropIds.forEach(id => {
+          const prop = props.find(p => p.id === id)
+          if (prop?.imageUrl) imageUrls.push(prop.imageUrl)
+        })
+
+        console.log('[Multi-Image Mode] TODO: Call API with:', {
+          imageUrls,
+          prompt: videoPrompt,
+          duration: parseInt(duration),
+          aspectRatio,
+        })
+        toast.info('多图模式API待实现')
+        setIsGenerating(false)
+        return
+      }
+
+      // 单图模式：使用现有逻辑
       const res = await fetch(`/api/projects/${projectId}/videos/${video.id}/assets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -582,6 +623,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   }
 
   const handleGeneratePrompt = async () => {
+    console.log('[handleGeneratePrompt] 函数被调用')
     if (!selectedScriptId) { toast.error('请先选择剧本'); return }
     setGeneratingPrompt(true)
     try {
@@ -607,7 +649,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
         .replace('{duration}', duration)
         .replace('{aspectRatio}', aspectRatio)
 
-      const res = await fetch(`/api/projects/${projectId}/videos/${video?.id}/generate-prompt`, {
+      const res = await fetch(`/api/projects/${projectId}/video/${video?.id}/generate-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scriptId: selectedScriptId, systemPrompt, userPrompt: filledPrompt }),
@@ -684,8 +726,27 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
         </CardContent>
       </Card>
 
-      {/* Character/Scene Selection */}
-      <Card>
+      {/* Generation Mode Tabs */}
+      <Tabs value={generationMode} onValueChange={(v) => setGenerationMode(v as 'single' | 'multi')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-12 bg-muted p-1">
+          <TabsTrigger
+            value="single"
+            className="text-base data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+          >
+            单图模式
+          </TabsTrigger>
+          <TabsTrigger
+            value="multi"
+            className="text-base data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+          >
+            多图模式
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Single Image Mode */}
+        <TabsContent value="single" className="space-y-4 mt-4">
+          {/* Generate Composite Image */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>选择素材</span>
@@ -859,42 +920,52 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
         </CardContent>
       </Card>
 
-      {/* Video Prompt */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>视频 Prompt</CardTitle>
-            <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={!selectedScriptId || generatingPrompt}>
-              {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              从剧本自动生成
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={videoPrompt}
-            onChange={e => setVideoPrompt(e.target.value)}
-            rows={4}
-            placeholder="描述视频内容..."
-            className="font-mono text-sm"
-          />
-        </CardContent>
-      </Card>
-
       {/* Generate Video */}
       {compositeImage?.url && (
         <Card>
           <CardHeader><CardTitle>步骤 2：生成视频</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {/* Video Prompt */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>视频 Prompt</Label>
+                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={!selectedScriptId || generatingPrompt}>
+                  {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  从剧本自动生成
+                </Button>
+              </div>
+              <Textarea
+                value={videoPrompt}
+                onChange={e => setVideoPrompt(e.target.value)}
+                rows={4}
+                placeholder="描述视频内容..."
+                className="font-mono text-sm"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>时长</Label>
                 <Select value={duration} onValueChange={setDuration}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="4">4秒</SelectItem>
                     <SelectItem value="5">5秒</SelectItem>
+                    <SelectItem value="6">6秒</SelectItem>
+                    <SelectItem value="7">7秒</SelectItem>
+                    <SelectItem value="8">8秒</SelectItem>
+                    <SelectItem value="9">9秒</SelectItem>
                     <SelectItem value="10">10秒</SelectItem>
+                    <SelectItem value="11">11秒</SelectItem>
+                    <SelectItem value="12">12秒</SelectItem>
+                    <SelectItem value="13">13秒</SelectItem>
+                    <SelectItem value="14">14秒</SelectItem>
                     <SelectItem value="15">15秒</SelectItem>
+                    <SelectItem value="16">16秒</SelectItem>
+                    <SelectItem value="17">17秒</SelectItem>
+                    <SelectItem value="18">18秒</SelectItem>
+                    <SelectItem value="19">19秒</SelectItem>
+                    <SelectItem value="20">20秒</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -926,6 +997,179 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Multi Image Mode */}
+        <TabsContent value="multi" className="space-y-4 mt-4">
+          {/* Asset Selection - Same as Single Mode */}
+          <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>选择素材</span>
+            {(() => {
+              const missing = checkMissingAssets()
+              const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
+              if (hasMissing) {
+                return (
+                  <div className="flex items-center gap-2 text-sm font-normal text-amber-600">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>部分素材缺少图片</span>
+                  </div>
+                )
+              }
+              return null
+            })()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-xs">角色 ({selectedCharacterIds.length})</Label>
+            <div className="grid grid-cols-6 gap-2 mt-2">
+              {characters.map(char => (
+                <div
+                  key={char.id}
+                  className={`relative border-2 rounded cursor-pointer ${
+                    selectedCharacterIds.includes(char.id) ? 'border-blue-500' : 'border-gray-200'
+                  }`}
+                  onClick={() => toggleCharacterSelection(char.id)}
+                >
+                  {!char.imageUrl && selectedCharacterIds.includes(char.id) && (
+                    <div className="absolute top-1 right-1 z-10">
+                      <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                    </div>
+                  )}
+                  <div className="h-16 bg-gray-50 flex items-center justify-center">
+                    {char.imageUrl ? (
+                      <img src={char.imageUrl} alt={char.name} className="w-full h-full object-contain" />
+                    ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                  </div>
+                  <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{char.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">场景 ({selectedSceneIds.length})</Label>
+            <div className="grid grid-cols-6 gap-2 mt-2">
+              {scenes.map(scene => (
+                <div
+                  key={scene.id}
+                  className={`relative border-2 rounded cursor-pointer ${
+                    selectedSceneIds.includes(scene.id) ? 'border-green-500' : 'border-gray-200'
+                  }`}
+                  onClick={() => toggleSceneSelection(scene.id)}
+                >
+                  {!scene.imageUrl && selectedSceneIds.includes(scene.id) && (
+                    <div className="absolute top-1 right-1 z-10">
+                      <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                    </div>
+                  )}
+                  <div className="h-16 bg-gray-50 flex items-center justify-center">
+                    {scene.imageUrl ? (
+                      <img src={scene.imageUrl} alt={scene.name} className="w-full h-full object-contain" />
+                    ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                  </div>
+                  <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{scene.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {props.length > 0 && (
+            <div>
+              <Label className="text-xs">道具 ({selectedPropIds.length})</Label>
+              <div className="grid grid-cols-6 gap-2 mt-2">
+                {props.map(prop => (
+                  <div
+                    key={prop.id}
+                    className={`relative border-2 rounded cursor-pointer ${
+                      selectedPropIds.includes(prop.id) ? 'border-orange-500' : 'border-gray-200'
+                    }`}
+                    onClick={() => togglePropSelection(prop.id)}
+                  >
+                    {!prop.imageUrl && selectedPropIds.includes(prop.id) && (
+                      <div className="absolute top-1 right-1 z-10">
+                        <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                      </div>
+                    )}
+                    <div className="h-16 bg-gray-50 flex items-center justify-center">
+                      {prop.imageUrl ? (
+                        <img src={prop.imageUrl} alt={prop.name} className="w-full h-full object-contain" />
+                      ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                    </div>
+                    <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{prop.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Generate Video - Multi Mode */}
+      <Card>
+        <CardHeader><CardTitle>生成视频</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {/* Video Prompt */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>视频 Prompt</Label>
+              <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={!selectedScriptId || generatingPrompt}>
+                {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                从剧本自动生成
+              </Button>
+            </div>
+            <Textarea
+              value={videoPrompt}
+              onChange={e => setVideoPrompt(e.target.value)}
+              rows={4}
+              placeholder="描述视频内容..."
+              className="font-mono text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>时长</Label>
+              <Select value={duration} onValueChange={setDuration}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5秒</SelectItem>
+                  <SelectItem value="10">10秒</SelectItem>
+                  <SelectItem value="15">15秒</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>宽高比</Label>
+              <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="16:9">16:9</SelectItem>
+                  <SelectItem value="9:16">9:16</SelectItem>
+                  <SelectItem value="1:1">1:1</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleGenerateVideo}
+            disabled={isGenerating || isPending || !videoPrompt.trim()}
+            className="w-full"
+          >
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+            生成视频
+          </Button>
+
+          {videoAsset?.url && (
+            <video src={videoAsset.url} controls className="w-full border rounded" />
+          )}
+        </CardContent>
+      </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Image Preview Dialog */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
