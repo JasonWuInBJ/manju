@@ -966,6 +966,9 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                 <Select value={duration} onValueChange={setDuration}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="1">1秒</SelectItem>
+                    <SelectItem value="2">2秒</SelectItem>
+                    <SelectItem value="3">3秒</SelectItem>
                     <SelectItem value="4">4秒</SelectItem>
                     <SelectItem value="5">5秒</SelectItem>
                     <SelectItem value="6">6秒</SelectItem>
@@ -983,6 +986,16 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                     <SelectItem value="18">18秒</SelectItem>
                     <SelectItem value="19">19秒</SelectItem>
                     <SelectItem value="20">20秒</SelectItem>
+                    <SelectItem value="21">21秒</SelectItem>
+                    <SelectItem value="22">22秒</SelectItem>
+                    <SelectItem value="23">23秒</SelectItem>
+                    <SelectItem value="24">24秒</SelectItem>
+                    <SelectItem value="25">25秒</SelectItem>
+                    <SelectItem value="26">26秒</SelectItem>
+                    <SelectItem value="27">27秒</SelectItem>
+                    <SelectItem value="28">28秒</SelectItem>
+                    <SelectItem value="29">29秒</SelectItem>
+                    <SelectItem value="30">30秒</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
