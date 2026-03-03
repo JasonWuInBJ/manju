@@ -313,10 +313,14 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     const script = scripts.find(s => s.id === selectedScriptId)
     const shot = script?.shots?.find(s => s.id === shotId)
 
+    console.log('[handleShotSelect] Shot selected:', { shotId, shot, duration: shot?.duration })
+
     if (shot) {
       // Set video duration to match shot duration
       if (shot.duration) {
-        setDuration(String(Math.round(shot.duration)))
+        const roundedDuration = String(Math.round(shot.duration))
+        console.log('[handleShotSelect] Setting duration:', roundedDuration)
+        setDuration(roundedDuration)
       }
 
       // Auto-select characters
@@ -745,7 +749,15 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
         {/* Single Image Mode */}
         <TabsContent value="single" className="space-y-4 mt-4">
-          {/* Generate Composite Image */}
+          {/* Mode Description */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">工作流程：</span>
+              选择素材 → 合成4宫格分镜图 → 生成视频。适合需要精确控制画面布局的场景。
+            </p>
+          </div>
+
+          {/* Asset Selection */}
           <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -853,7 +865,12 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
       {/* Generate Composite Image */}
       <Card>
-        <CardHeader><CardTitle>步骤 1：生成合成图</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>步骤 1：生成4宫格合成图</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            将选中的素材合成为一张4宫格分镜图，用于视频生成
+          </p>
+        </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -1001,24 +1018,45 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
         {/* Multi Image Mode */}
         <TabsContent value="multi" className="space-y-4 mt-4">
+          {/* Mode Description */}
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <p className="text-sm text-purple-800">
+              <span className="font-semibold">工作流程：</span>
+              选择素材 → 直接生成视频。所有素材图片直接传给AI模型，由模型自动处理画面布局。
+            </p>
+          </div>
+
           {/* Asset Selection - Same as Single Mode */}
           <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>选择素材</span>
-            {(() => {
-              const missing = checkMissingAssets()
-              const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
-              if (hasMissing) {
-                return (
-                  <div className="flex items-center gap-2 text-sm font-normal text-amber-600">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>部分素材缺少图片</span>
-                  </div>
-                )
-              }
-              return null
-            })()}
+            <div className="flex items-center gap-4">
+              {(() => {
+                const totalSelected = selectedCharacterIds.length + selectedSceneIds.length + selectedPropIds.length
+                if (totalSelected > 0) {
+                  return (
+                    <div className="text-sm font-normal text-teal-600">
+                      已选 {totalSelected} 张素材图片
+                    </div>
+                  )
+                }
+                return null
+              })()}
+              {(() => {
+                const missing = checkMissingAssets()
+                const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
+                if (hasMissing) {
+                  return (
+                    <div className="flex items-center gap-2 text-sm font-normal text-amber-600">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>部分素材缺少图片</span>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1109,7 +1147,12 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
       {/* Generate Video - Multi Mode */}
       <Card>
-        <CardHeader><CardTitle>生成视频</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>生成视频</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            直接使用选中的素材图片生成视频，无需合成步骤
+          </p>
+        </CardHeader>
         <CardContent className="space-y-4">
           {/* Video Prompt */}
           <div className="space-y-2">
