@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: Props) {
     }
 
     // Call RunningHub API
-    const apiUrl = 'https://www.runninghub.cn/openapi/v2/rhart-video-s/image-to-video-pro'
+    const apiUrl = 'https://www.runninghub.cn/openapi/v2/rhart-video-s-official/image-to-video-pro'
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -67,7 +67,7 @@ export async function POST(request: Request, { params }: Props) {
         prompt: trimmedPrompt,
         imageUrl: imageUrl,
         duration,
-        aspectRatio,
+        resolution: '1080p',
       }),
     })
 

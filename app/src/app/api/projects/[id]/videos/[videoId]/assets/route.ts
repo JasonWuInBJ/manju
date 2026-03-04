@@ -296,7 +296,7 @@ async function handleVideoGeneration(
     : videoPrompt
 
   // Call RunningHub video API
-  const apiUrl = 'https://www.runninghub.cn/openapi/v2/rhart-video-s/image-to-video-pro'
+  const apiUrl = 'https://www.runninghub.cn/openapi/v2/rhart-video-s-official/image-to-video-pro'
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -308,7 +308,7 @@ async function handleVideoGeneration(
       prompt: trimmedPrompt,
       imageUrl: compositeImageAsset.url,
       duration: String(duration),
-      aspectRatio,
+      resolution: '1080p',
     }),
   })
 

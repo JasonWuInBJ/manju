@@ -156,7 +156,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   const [selectedPropIds, setSelectedPropIds] = useState<string[]>([])
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
   const [videoPrompt, setVideoPrompt] = useState<string>('')
-  const [duration, setDuration] = useState<string>('15')
+  const [duration, setDuration] = useState<string>('4')
   const [aspectRatio, setAspectRatio] = useState<string>('16:9')
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -164,6 +164,8 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   const [selectedImagePromptConfig, setSelectedImagePromptConfig] = useState<any>(null)
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
   const [compositePrompt, setCompositePrompt] = useState<string>('')
+  const [keyframePrompt, setKeyframePrompt] = useState<string>('')
+  const [keyframeVideoPrompt, setKeyframeVideoPrompt] = useState<string>('')
   const [generatingImagePrompt, setGeneratingImagePrompt] = useState(false)
   const [styleTags, setStyleTags] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -173,7 +175,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   })
   const [showMissingAssetsDialog, setShowMissingAssetsDialog] = useState(false)
   const [missingAssets, setMissingAssets] = useState<{ characters: string[], scenes: string[], props: string[] }>({ characters: [], scenes: [], props: [] })
-  const [generationMode, setGenerationMode] = useState<'single' | 'multi'>('single')
+  const [generationMode, setGenerationMode] = useState<'single' | 'keyframe' | 'multi'>('single')
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state with video
@@ -318,9 +320,13 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     if (shot) {
       // Set video duration to match shot duration
       if (shot.duration) {
-        const roundedDuration = String(Math.round(shot.duration))
-        console.log('[handleShotSelect] Setting duration:', roundedDuration)
-        setDuration(roundedDuration)
+        const raw = Math.round(shot.duration)
+        const validDurations = [4, 8, 12]
+        const snapped = validDurations.reduce((prev, curr) =>
+          Math.abs(curr - raw) < Math.abs(prev - raw) ? curr : prev
+        )
+        console.log('[handleShotSelect] Setting duration:', snapped)
+        setDuration(String(snapped))
       }
 
       // Auto-select characters
@@ -394,9 +400,14 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     })
     const atmosphere = atmosphereParts.join(', ')
 
-    // 拼接
-    const parts = [shotLang, charDesc, actions, envDesc, atmosphere, styleTags].filter(p => p.trim())
-    return parts.join(', ')
+    // 拼接（不含景别，交由模型自由发挥）
+    const parts = [charDesc, actions, envDesc, atmosphere, styleTags].filter(p => p.trim())
+    const basePrompt = parts.join(', ')
+
+    // 9宫格关键帧要求
+    const gridRequirement = `3x3 grid layout with 9 panels showing key animation frames in sequence, each panel captures a distinct moment, characters and scene visually consistent across all panels, clear visible white gutters between panels with adequate spacing to separate each frame cleanly, clean panel borders, cinematic storyboard keyframe sheet`
+
+    return `${basePrompt}, ${gridRequirement}`
   }
 
   const handleBuildStructuredPrompt = () => {
@@ -405,6 +416,42 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       return
     }
     setCompositePrompt(buildStructuredPrompt())
+  }
+
+  const buildKeyframePrompt = () => {
+    const chars = selectedCharacterIds
+      .map(id => characters.find(c => c.id === id))
+      .filter(Boolean) as Character[]
+    const script = scripts.find(s => s.id === selectedScriptId)
+    const shot = script?.shots?.find(s => s.id === selectedShotId)
+
+    // 景别（首帧模式保留）
+    const shotLang = shot ? `${shot.cameraShotType}, ${shot.cameraMovement}` : 'Medium shot'
+    const charDesc = chars.map(c => `${c.name}, ${c.description}`).join('; ')
+    const actions = shot?.characterAction || ''
+    const envDesc = shot?.sceneSetting ? `in ${shot.sceneSetting}` : ''
+
+    const scns = selectedSceneIds
+      .map(id => scenes.find(s => s.id === id))
+      .filter(Boolean) as Scene[]
+    const atmosphereParts: string[] = []
+    scns.forEach(s => {
+      if (s.time) atmosphereParts.push(`${s.time.toLowerCase()} lighting`)
+      if (s.mood) atmosphereParts.push(`${s.mood} atmosphere`)
+      if (s.weather && s.weather !== 'Clear') atmosphereParts.push(s.weather.toLowerCase())
+    })
+    const atmosphere = atmosphereParts.join(', ')
+
+    const parts = [shotLang, charDesc, actions, envDesc, atmosphere, styleTags].filter(p => p.trim())
+    return parts.join(', ')
+  }
+
+  const handleBuildKeyframePrompt = () => {
+    if (!selectedShotId) {
+      toast.error('请至少选择一个分镜')
+      return
+    }
+    setKeyframePrompt(buildKeyframePrompt())
   }
 
   const handleAIOptimizePrompt = async () => {
@@ -451,7 +498,12 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       if (data.prompt) {
         // Append style tags if not already present
         const prompt = data.prompt.trim()
-        setCompositePrompt(prompt.endsWith(styleTags) ? prompt : `${prompt}, ${styleTags}`)
+        const finalPrompt = prompt.endsWith(styleTags) ? prompt : `${prompt}, ${styleTags}`
+        if (generationMode === 'keyframe') {
+          setKeyframePrompt(finalPrompt)
+        } else {
+          setCompositePrompt(finalPrompt)
+        }
       }
     } catch {
       toast.error('AI 优化失败')
@@ -516,6 +568,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     if (!video) return
 
     setIsGenerating(true)
+    const activePrompt = generationMode === 'keyframe' ? keyframePrompt : compositePrompt
     try {
       const res = await fetch(`/api/projects/${projectId}/videos/${video.id}/assets`, {
         method: 'POST',
@@ -524,7 +577,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           type: 'composite_image',
           aspectRatio,
           propIds: selectedPropIds,
-          ...(compositePrompt.trim() ? { prompt: compositePrompt } : {}),
+          ...(activePrompt.trim() ? { prompt: activePrompt } : {}),
         }),
       })
 
@@ -548,8 +601,8 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   const handleGenerateVideo = async () => {
     if (!video) return
 
-    // 单图模式需要合成图
-    if (generationMode === 'single') {
+    // 单图/首帧模式需要合成图
+    if (generationMode === 'single' || generationMode === 'keyframe') {
       const compositeImage = video.assets?.find(a => a.type === 'composite_image' && a.url)
       if (!compositeImage?.url) {
         toast.error('请先生成合成图')
@@ -557,14 +610,21 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       }
     }
 
-    if (!videoPrompt.trim()) {
+    if (!videoPrompt.trim() && generationMode !== 'keyframe') {
+      toast.error('请输入视频 Prompt')
+      return
+    }
+
+    const activeVideoPrompt = generationMode === 'keyframe' ? keyframeVideoPrompt : videoPrompt
+
+    if (!activeVideoPrompt.trim()) {
       toast.error('请输入视频 Prompt')
       return
     }
 
     setIsGenerating(true)
     try {
-      await updateVideo({ prompt: videoPrompt })
+      await updateVideo({ prompt: activeVideoPrompt })
 
       // TODO: 多图模式API调用
       if (generationMode === 'multi') {
@@ -588,7 +648,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
 
         console.log('[Multi-Image Mode] TODO: Call API with:', {
           imageUrls,
-          prompt: videoPrompt,
+          prompt: activeVideoPrompt,
           duration: parseInt(duration),
           aspectRatio,
         })
@@ -605,7 +665,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           type: 'video',
           duration: parseInt(duration),
           aspectRatio,
-          prompt: videoPrompt,
+          prompt: activeVideoPrompt,
         }),
       })
 
@@ -626,21 +686,47 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     }
   }
 
+  const buildVideoPrompt = () => {
+    if (!selectedScriptId) { toast.error('请先选择剧本'); return }
+    const script = scripts.find(s => s.id === selectedScriptId)
+    const shot = script?.shots?.find(s => s.id === selectedShotId)
+    const refCharIds = shot?.refCharacterIds ? JSON.parse(shot.refCharacterIds) as string[] : selectedCharacterIds
+    const refSceneIds = shot?.refSceneIds ? JSON.parse(shot.refSceneIds) as string[] : selectedSceneIds
+    const chars = refCharIds.map((id: string) => characters.find(c => c.id === id)).filter(Boolean) as Character[]
+    const scns = refSceneIds.map((id: string) => scenes.find(s => s.id === id)).filter(Boolean) as Scene[]
+
+    const parts: string[] = []
+    if (shot?.characterAction) parts.push(shot.characterAction)
+    if (chars.length > 0) parts.push(chars.map(c => `${c.name}${c.description ? ` (${c.description})` : ''}`).join(', '))
+    if (scns.length > 0) parts.push(scns.map(s => `${s.name}${s.description ? `: ${s.description}` : ''}`).join('; '))
+    if (shot?.sceneSetting) parts.push(shot.sceneSetting)
+    if (generationMode === 'keyframe' && shot?.visualPrompt) parts.push(shot.visualPrompt)
+    if (shot?.audio) parts.push(`audio: ${shot.audio}`)
+    parts.push(styleTags)
+
+    const prompt = parts.filter(p => p.trim()).join(', ')
+    if (generationMode === 'keyframe') {
+      setKeyframeVideoPrompt(prompt)
+    } else {
+      setVideoPrompt(prompt)
+    }
+  }
+
   const handleGeneratePrompt = async () => {
     console.log('[handleGeneratePrompt] 函数被调用')
     if (!selectedScriptId) { toast.error('请先选择剧本'); return }
     setGeneratingPrompt(true)
     try {
       const script = scripts.find(s => s.id === selectedScriptId)
-      const chars = selectedCharacterIds
-        .map(id => characters.find(c => c.id === id))
-        .filter(Boolean)
-      const scns = selectedSceneIds
-        .map(id => scenes.find(s => s.id === id))
-        .filter(Boolean)
       const shot = script?.shots?.find(s => s.id === selectedShotId)
+
+      // 从 shot 关联的角色/场景取描述，没有则用手动选中的
+      const refCharIds = shot?.refCharacterIds ? JSON.parse(shot.refCharacterIds) as string[] : selectedCharacterIds
+      const refSceneIds = shot?.refSceneIds ? JSON.parse(shot.refSceneIds) as string[] : selectedSceneIds
+      const chars = refCharIds.map((id: string) => characters.find(c => c.id === id)).filter(Boolean)
+      const scns = refSceneIds.map((id: string) => scenes.find(s => s.id === id)).filter(Boolean)
       const shotsText = shot
-        ? `Shot ${shot.order}: [${shot.cameraShotType}, ${shot.cameraMovement}] ${shot.sceneSetting}, ${shot.characterAction || ''}, Audio: ${shot.audio}`
+        ? `镜头 ${shot.order}: [${shot.cameraShotType}, ${shot.cameraMovement}] ${shot.sceneSetting}, ${shot.characterAction || ''}, Audio: ${shot.audio}\nVisual: ${shot.visualPrompt}`
         : 'No shot breakdown available'
 
       const systemPrompt = selectedPromptConfig?.systemPrompt || DEFAULT_VIDEO_SYSTEM_PROMPT
@@ -659,7 +745,13 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
         body: JSON.stringify({ scriptId: selectedScriptId, systemPrompt, userPrompt: filledPrompt }),
       })
       const data = await res.json()
-      if (data.prompt) setVideoPrompt(data.prompt)
+      if (data.prompt) {
+        if (generationMode === 'keyframe') {
+          setKeyframeVideoPrompt(data.prompt)
+        } else {
+          setVideoPrompt(data.prompt)
+        }
+      }
     } catch (error) {
       toast.error('生成 Prompt 失败')
     } finally {
@@ -721,7 +813,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   }`}
                   onClick={() => handleShotSelect(shot.id)}
                 >
-                  <div className="font-medium">Shot {shot.order}</div>
+                  <div className="font-medium">镜头 {shot.order}</div>
                   <div className="text-muted-foreground truncate">{shot.cameraShotType} / {shot.cameraMovement}</div>
                 </div>
               ))}
@@ -731,13 +823,19 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       </Card>
 
       {/* Generation Mode Tabs */}
-      <Tabs value={generationMode} onValueChange={(v) => setGenerationMode(v as 'single' | 'multi')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-12 bg-muted p-1">
+      <Tabs value={generationMode} onValueChange={(v) => setGenerationMode(v as 'single' | 'keyframe' | 'multi')} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-12 bg-muted p-1">
           <TabsTrigger
             value="single"
             className="text-base data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-md"
           >
-            单图模式
+            九宫格模式
+          </TabsTrigger>
+          <TabsTrigger
+            value="keyframe"
+            className="text-base data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+          >
+            单帧模式
           </TabsTrigger>
           <TabsTrigger
             value="multi"
@@ -753,7 +851,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               <span className="font-semibold">工作流程：</span>
-              选择素材 → 合成4宫格分镜图 → 生成视频。适合需要精确控制画面布局的场景。
+              选择素材 → 合成9宫格分镜图 → 生成视频。适合需要精确控制画面布局的场景。
             </p>
           </div>
 
@@ -866,9 +964,9 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
       {/* Generate Composite Image */}
       <Card>
         <CardHeader>
-          <CardTitle>步骤 1：生成4宫格合成图</CardTitle>
+          <CardTitle>步骤 1：生成9宫格合成图</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            将选中的素材合成为一张4宫格分镜图，用于视频生成
+            将选中的素材合成为一张9宫格分镜图，用于视频生成
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -893,7 +991,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                 size="sm"
                 variant="outline"
                 onClick={handleBuildStructuredPrompt}
-                disabled={!selectedShotId}
+                disabled={isGenerating || !selectedShotId}
               >
                 <Sparkles className="w-4 h-4 mr-1.5" />
                 生成 Prompt
@@ -902,7 +1000,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                 size="sm"
                 variant="outline"
                 onClick={handleAIOptimizePrompt}
-                disabled={generatingImagePrompt || !selectedShotId}
+                disabled={isGenerating || generatingImagePrompt || !selectedShotId}
               >
                 {generatingImagePrompt ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1.5" />}
                 AI 优化
@@ -922,8 +1020,8 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
             disabled={isGenerating || isPending}
             className="w-full"
           >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ImageIcon className="w-4 h-4 mr-2" />}
-            生成合成图
+            {(isGenerating || isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ImageIcon className="w-4 h-4 mr-2" />}
+            生成9宫格合成图
           </Button>
 
           {compositeImage?.url && (
@@ -946,10 +1044,15 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>视频 Prompt</Label>
-                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={!selectedScriptId || generatingPrompt}>
-                  {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  从剧本自动生成
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={buildVideoPrompt} disabled={isGenerating || !selectedScriptId}>
+                    生成 Prompt
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating || !selectedScriptId || generatingPrompt}>
+                    {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    AI 优化
+                  </Button>
+                </div>
               </div>
               <Textarea
                 value={videoPrompt}
@@ -966,36 +1069,9 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                 <Select value={duration} onValueChange={setDuration}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1秒</SelectItem>
-                    <SelectItem value="2">2秒</SelectItem>
-                    <SelectItem value="3">3秒</SelectItem>
                     <SelectItem value="4">4秒</SelectItem>
-                    <SelectItem value="5">5秒</SelectItem>
-                    <SelectItem value="6">6秒</SelectItem>
-                    <SelectItem value="7">7秒</SelectItem>
                     <SelectItem value="8">8秒</SelectItem>
-                    <SelectItem value="9">9秒</SelectItem>
-                    <SelectItem value="10">10秒</SelectItem>
-                    <SelectItem value="11">11秒</SelectItem>
                     <SelectItem value="12">12秒</SelectItem>
-                    <SelectItem value="13">13秒</SelectItem>
-                    <SelectItem value="14">14秒</SelectItem>
-                    <SelectItem value="15">15秒</SelectItem>
-                    <SelectItem value="16">16秒</SelectItem>
-                    <SelectItem value="17">17秒</SelectItem>
-                    <SelectItem value="18">18秒</SelectItem>
-                    <SelectItem value="19">19秒</SelectItem>
-                    <SelectItem value="20">20秒</SelectItem>
-                    <SelectItem value="21">21秒</SelectItem>
-                    <SelectItem value="22">22秒</SelectItem>
-                    <SelectItem value="23">23秒</SelectItem>
-                    <SelectItem value="24">24秒</SelectItem>
-                    <SelectItem value="25">25秒</SelectItem>
-                    <SelectItem value="26">26秒</SelectItem>
-                    <SelectItem value="27">27秒</SelectItem>
-                    <SelectItem value="28">28秒</SelectItem>
-                    <SelectItem value="29">29秒</SelectItem>
-                    <SelectItem value="30">30秒</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1017,7 +1093,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
               disabled={isGenerating || isPending || !videoPrompt.trim()}
               className="w-full"
             >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+              {(isGenerating || isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
               生成视频
             </Button>
 
@@ -1027,6 +1103,170 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Keyframe Mode */}
+        <TabsContent value="keyframe" className="space-y-4 mt-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              <span className="font-semibold">工作流程：</span>
+              选择素材 → 生成单张首帧图（含景别控制）→ 生成视频。适合精准控制镜头构图的场景。
+            </p>
+          </div>
+
+          {/* Asset Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>选择素材</span>
+                {(() => {
+                  const missing = checkMissingAssets()
+                  const hasMissing = missing.characters.length > 0 || missing.scenes.length > 0 || missing.props.length > 0
+                  if (hasMissing) {
+                    return (
+                      <div className="flex items-center gap-2 text-sm font-normal text-amber-600">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>部分素材缺少图片</span>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-xs">角色 ({selectedCharacterIds.length})</Label>
+                <div className="grid grid-cols-6 gap-2 mt-2">
+                  {characters.map(char => (
+                    <div
+                      key={char.id}
+                      className={`relative border-2 rounded cursor-pointer ${
+                        selectedCharacterIds.includes(char.id) ? 'border-green-500' : 'border-gray-200'
+                      }`}
+                      onClick={() => toggleCharacterSelection(char.id)}
+                    >
+                      {!char.imageUrl && selectedCharacterIds.includes(char.id) && (
+                        <div className="absolute top-1 right-1 z-10">
+                          <AlertTriangle className="w-4 h-4 text-red-500 bg-white rounded-full p-0.5" />
+                        </div>
+                      )}
+                      <div className="h-16 bg-gray-50 flex items-center justify-center">
+                        {char.imageUrl ? (
+                          <img src={char.imageUrl} alt={char.name} className="w-full h-full object-contain" />
+                        ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                      </div>
+                      <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{char.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">场景 ({selectedSceneIds.length})</Label>
+                <div className="grid grid-cols-6 gap-2 mt-2">
+                  {scenes.map(scene => (
+                    <div
+                      key={scene.id}
+                      className={`relative border-2 rounded cursor-pointer ${
+                        selectedSceneIds.includes(scene.id) ? 'border-green-500' : 'border-gray-200'
+                      }`}
+                      onClick={() => toggleSceneSelection(scene.id)}
+                    >
+                      <div className="h-16 bg-gray-50 flex items-center justify-center">
+                        {scene.imageUrl ? (
+                          <img src={scene.imageUrl} alt={scene.name} className="w-full h-full object-contain" />
+                        ) : <ImageIcon className="w-6 h-6 text-gray-400" />}
+                      </div>
+                      <div className="text-xs text-center truncate p-1 bg-black/60 text-white">{scene.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Step 1: Generate Keyframe Image */}
+          <Card>
+            <CardHeader>
+              <CardTitle>步骤 1：生成首帧图</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                根据分镜景别生成精准构图的单张首帧图，用于视频生成
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">首帧 Prompt</Label>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={handleBuildKeyframePrompt} disabled={isGenerating || !selectedShotId}>
+                      生成 Prompt
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleAIOptimizePrompt} disabled={isGenerating || !selectedShotId || generatingPrompt}>
+                      {generatingPrompt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                      AI 优化
+                    </Button>
+                  </div>
+                </div>
+                <Textarea
+                  value={keyframePrompt}
+                  onChange={e => setKeyframePrompt(e.target.value)}
+                  rows={5}
+                  placeholder="点击「生成 Prompt」自动带入景别和角色信息..."
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <Button
+                onClick={handleGenerateCompositeImage}
+                disabled={isGenerating || isPending}
+                className="w-full"
+              >
+                {(isGenerating || isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ImageIcon className="w-4 h-4 mr-2" />}
+                生成首帧图
+              </Button>
+
+              {compositeImage?.url && (
+                <img src={compositeImage.url} alt="首帧图" className="w-full border rounded" />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Step 2: Generate Video */}
+          <Card>
+            <CardHeader>
+              <CardTitle>步骤 2：生成视频</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-xs">视频 Prompt</Label>
+                <Textarea
+                  value={keyframeVideoPrompt}
+                  onChange={e => setKeyframeVideoPrompt(e.target.value)}
+                  rows={3}
+                  placeholder="描述视频的动态效果..."
+                  className="font-mono text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={buildVideoPrompt} disabled={isGenerating || !selectedScriptId}>
+                  生成 Prompt
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating || !selectedScriptId || generatingPrompt} className="w-full">
+                  {generatingPrompt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                  AI 优化
+                </Button>
+              </div>
+              <Button
+                onClick={handleGenerateVideo}
+                disabled={isGenerating || isPending || !keyframeVideoPrompt.trim()}
+                className="w-full"
+              >
+                {(isGenerating || isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+                生成视频
+              </Button>
+              {videoAsset?.url && (
+                <video src={videoAsset.url} controls className="w-full border rounded" />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Multi Image Mode */}
@@ -1171,10 +1411,15 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>视频 Prompt</Label>
-              <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={!selectedScriptId || generatingPrompt}>
-                {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                从剧本自动生成
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={buildVideoPrompt} disabled={isGenerating || !selectedScriptId}>
+                  生成 Prompt
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating || !selectedScriptId || generatingPrompt}>
+                  {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  AI 优化
+                </Button>
+              </div>
             </div>
             <Textarea
               value={videoPrompt}
@@ -1191,9 +1436,9 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
               <Select value={duration} onValueChange={setDuration}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5">5秒</SelectItem>
-                  <SelectItem value="10">10秒</SelectItem>
-                  <SelectItem value="15">15秒</SelectItem>
+                  <SelectItem value="4">4秒</SelectItem>
+                  <SelectItem value="8">8秒</SelectItem>
+                  <SelectItem value="12">12秒</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1215,7 +1460,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
             disabled={isGenerating || isPending || !videoPrompt.trim()}
             className="w-full"
           >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+            {(isGenerating || isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
             生成视频
           </Button>
 

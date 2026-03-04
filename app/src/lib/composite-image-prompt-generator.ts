@@ -71,11 +71,16 @@ Script context: ${scriptContent}`
   prompt += `
 
 Visual requirements:
-- Blend the characters and scene naturally together
-- Visual style: ${style}
-- High quality, cinematic composition, 4K resolution
-- The characters should be seamlessly integrated into the scene environment
-- Maintain consistent character appearance and scene atmosphere`
+- Create a 3x3 grid layout (9 panels) showing key animation frames in sequence, like a professional storyboard keyframe sheet
+- Each panel captures a distinct moment or pose, with smooth narrative progression from panel 1 to panel 9
+- CONSISTENCY (critical): character faces, hairstyles, clothing, body proportions, and color palette must remain identical across all 9 panels
+- CONSISTENCY (critical): lighting direction, scene atmosphere, color grading, and background elements must stay uniform throughout
+- Each panel should have clean borders and equal sizing within the grid
+- Visual style: ${style}, applied consistently across all panels
+- Cinematic framing: vary shot types naturally (wide, medium, close-up) to create visual rhythm
+- High quality, sharp details, 4K resolution, professional illustration quality
+- Characters fully integrated into the scene with accurate perspective and lighting interaction
+- Rich color, high contrast, visually striking composition that works as a cohesive whole`
 
   return prompt
 }
