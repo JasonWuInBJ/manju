@@ -52,6 +52,7 @@ interface Shot {
   refSceneIds?: string | null
   refPropIds?: string | null
   audio: string
+  dialogue?: string | null
 }
 
 interface Script {
@@ -704,7 +705,7 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     if (scns.length > 0) parts.push(scns.map(s => `${s.name}${s.description ? `: ${s.description}` : ''}`).join('; '))
     if (shot?.sceneSetting) parts.push(shot.sceneSetting)
     if (generationMode === 'keyframe' && shot?.visualPrompt) parts.push(shot.visualPrompt)
-    if (includeDialogue && shot?.audio) parts.push(`dialogue: ${shot.audio}`)
+    if (includeDialogue && shot?.dialogue) parts.push(`dialogue: ${shot.dialogue}`)
     if (includeSoundEffect && shot?.audio) parts.push(`sound effects: ${shot.audio}`)
     parts.push(styleTags)
 

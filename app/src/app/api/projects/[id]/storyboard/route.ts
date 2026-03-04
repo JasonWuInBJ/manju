@@ -17,6 +17,7 @@ interface ShotInput {
   refCharacterIds?: string | null
   refPropIds?: string | null
   audio: string
+  dialogue?: string
 }
 
 export async function PUT(request: Request, { params }: Props) {
@@ -51,6 +52,7 @@ export async function PUT(request: Request, { params }: Props) {
           refCharacterIds: s.refCharacterIds || null,
           refPropIds: s.refPropIds || null,
           audio: s.audio,
+          dialogue: s.dialogue || '',
         },
       })
     )

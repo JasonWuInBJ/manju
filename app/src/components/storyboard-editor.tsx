@@ -26,6 +26,7 @@ interface Shot {
   refPropIds?: string | null
   refSceneIds?: string | null
   audio: string
+  dialogue?: string
 }
 
 interface CharacterRef {
@@ -103,7 +104,8 @@ const DEFAULT_SYSTEM_PROMPT = `你是一位专业的AI视频分镜师。根据�
       "ref_character_ids": ["character_id"],
       "ref_scene_ids": ["scene_id"],
       "ref_prop_ids": ["prop_id"],
-      "audio": "对白或音效"
+      "dialogue": "角色对白，无则留空",
+      "audio": "音效描述，无则留空"
     }
   ]
 }`
@@ -142,6 +144,7 @@ interface ShotData {
   refPropIds?: string | null
   refSceneIds?: string | null
   audio: string
+  dialogue?: string
 }
 
 function computeTimeSlot(shots: ShotData[], index: number): string {
@@ -183,6 +186,7 @@ export function StoryboardEditor({ project }: Props) {
         refPropIds: s.refPropIds,
         refSceneIds: s.refSceneIds,
         audio: s.audio,
+        dialogue: s.dialogue || '',
       })) || []
     })
     return map
@@ -247,7 +251,8 @@ export function StoryboardEditor({ project }: Props) {
           refSceneIds: s.ref_scene_ids
             ? JSON.stringify(s.ref_scene_ids)
             : s.refSceneIds || null,
-          audio: s.audio,
+          audio: s.audio || '',
+          dialogue: s.dialogue || '',
         }))
         setShotsMap(prev => ({ ...prev, [activeScriptId]: mapped }))
       }
@@ -300,6 +305,7 @@ export function StoryboardEditor({ project }: Props) {
       refPropIds: null,
       refSceneIds: null,
       audio: '',
+      dialogue: '',
     }]
     setShotsMap(prev => ({ ...prev, [activeScriptId]: newShots }))
   }
@@ -563,11 +569,20 @@ export function StoryboardEditor({ project }: Props) {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-slate-500">音频</label>
+                          <label className="text-xs font-medium text-slate-500">对白</label>
+                          <Textarea
+                            value={shot.dialogue}
+                            onChange={(e) => updateShot(index, 'dialogue', e.target.value)}
+                            placeholder="角色对白..."
+                            className="min-h-[60px] text-sm resize-none"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-slate-500">音效</label>
                           <Textarea
                             value={shot.audio}
                             onChange={(e) => updateShot(index, 'audio', e.target.value)}
-                            placeholder="对白/音效..."
+                            placeholder="音效描述..."
                             className="min-h-[60px] text-sm resize-none"
                           />
                         </div>
