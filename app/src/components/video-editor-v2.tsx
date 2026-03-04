@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Video, Image as ImageIcon, Sparkles, ZoomIn, History, Settings, Wand2, AlertTriangle } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -176,6 +177,8 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
   const [showMissingAssetsDialog, setShowMissingAssetsDialog] = useState(false)
   const [missingAssets, setMissingAssets] = useState<{ characters: string[], scenes: string[], props: string[] }>({ characters: [], scenes: [], props: [] })
   const [generationMode, setGenerationMode] = useState<'single' | 'keyframe' | 'multi'>('single')
+  const [includeDialogue, setIncludeDialogue] = useState(false)
+  const [includeSoundEffect, setIncludeSoundEffect] = useState(false)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state with video
@@ -701,8 +704,14 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
     if (scns.length > 0) parts.push(scns.map(s => `${s.name}${s.description ? `: ${s.description}` : ''}`).join('; '))
     if (shot?.sceneSetting) parts.push(shot.sceneSetting)
     if (generationMode === 'keyframe' && shot?.visualPrompt) parts.push(shot.visualPrompt)
-    if (shot?.audio) parts.push(`audio: ${shot.audio}`)
+    if (includeDialogue && shot?.audio) parts.push(`dialogue: ${shot.audio}`)
+    if (includeSoundEffect && shot?.audio) parts.push(`sound effects: ${shot.audio}`)
     parts.push(styleTags)
+
+    const negatives: string[] = []
+    if (!includeDialogue) negatives.push('no dialogue, no speech, no talking, no subtitles, no text overlay')
+    if (!includeSoundEffect) negatives.push('no sound effects, no background music, silent')
+    if (negatives.length > 0) parts.push(`[STRICT: ${negatives.join(', ')}]`)
 
     const prompt = parts.filter(p => p.trim()).join(', ')
     if (generationMode === 'keyframe') {
@@ -1054,6 +1063,16 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   </Button>
                 </div>
               </div>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <Checkbox id="single-dialogue" checked={includeDialogue} onCheckedChange={v => setIncludeDialogue(!!v)} />
+                  <label htmlFor="single-dialogue" className="cursor-pointer">包含对白</label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Checkbox id="single-sfx" checked={includeSoundEffect} onCheckedChange={v => setIncludeSoundEffect(!!v)} />
+                  <label htmlFor="single-sfx" className="cursor-pointer">包含音效</label>
+                </div>
+              </div>
               <Textarea
                 value={videoPrompt}
                 onChange={e => setVideoPrompt(e.target.value)}
@@ -1238,7 +1257,28 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
-                <Label className="text-xs">视频 Prompt</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">视频 Prompt</Label>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={buildVideoPrompt} disabled={isGenerating || !selectedScriptId}>
+                      生成 Prompt
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating || !selectedScriptId || generatingPrompt}>
+                      {generatingPrompt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                      AI 优化
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Checkbox id="kf-dialogue" checked={includeDialogue} onCheckedChange={v => setIncludeDialogue(!!v)} />
+                    <label htmlFor="kf-dialogue" className="cursor-pointer">包含对白</label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Checkbox id="kf-sfx" checked={includeSoundEffect} onCheckedChange={v => setIncludeSoundEffect(!!v)} />
+                    <label htmlFor="kf-sfx" className="cursor-pointer">包含音效</label>
+                  </div>
+                </div>
                 <Textarea
                   value={keyframeVideoPrompt}
                   onChange={e => setKeyframeVideoPrompt(e.target.value)}
@@ -1246,13 +1286,6 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   placeholder="描述视频的动态效果..."
                   className="font-mono text-sm"
                 />
-                <Button size="sm" variant="outline" onClick={buildVideoPrompt} disabled={isGenerating || !selectedScriptId}>
-                  生成 Prompt
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating || !selectedScriptId || generatingPrompt} className="w-full">
-                  {generatingPrompt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                  AI 优化
-                </Button>
               </div>
               <Button
                 onClick={handleGenerateVideo}
@@ -1419,6 +1452,16 @@ export function VideoEditor({ projectId, video, scripts, characters, scenes, pro
                   {generatingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                   AI 优化
                 </Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <Checkbox id="multi-dialogue" checked={includeDialogue} onCheckedChange={v => setIncludeDialogue(!!v)} />
+                <label htmlFor="multi-dialogue" className="cursor-pointer">包含对白</label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Checkbox id="multi-sfx" checked={includeSoundEffect} onCheckedChange={v => setIncludeSoundEffect(!!v)} />
+                <label htmlFor="multi-sfx" className="cursor-pointer">包含音效</label>
               </div>
             </div>
             <Textarea
