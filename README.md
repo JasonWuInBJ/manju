@@ -77,10 +77,10 @@ docker compose version
 
 ```bash
 # 克隆仓库
-git clone https://github.com/saturndec/waoowaoo.git
+[git clone https://github.com/JasonWuInBJ/manju.git](https://github.com/JasonWuInBJ/manju.git)
 
 # 进入项目目录
-cd waoowaoo/app
+cd manju/app
 ```
 
 > 如果没有安装 Git，可以从 GitHub 页面下载 ZIP 压缩包并解压。
@@ -91,7 +91,7 @@ cd waoowaoo/app
 
 ```bash
 # 在 app 目录下执行
-docker compose up -d
+docker-compose up -d
 ```
 
 首次启动会自动构建镜像，需要等待几分钟。后续启动会直接使用已构建的镜像，速度很快。
