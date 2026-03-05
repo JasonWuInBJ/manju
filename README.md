@@ -119,7 +119,7 @@ docker-compose up -d
 | 服务 | 用途 | 获取方式 |
 |------|------|----------|
 | GLM API Key | 文本生成（剧本、分镜等） | [智谱 AI 开放平台](https://bigmodel.cn/) |
-| RunningHub API Key | 图片生成、视频生成 | 联系作者获取 |
+| RunningHub API Key | 图片生成、视频生成 | [RunningHub](https://www.runninghub.ai/) |
 | Anthropic API Key | 可选，文本生成备选 | [Anthropic 官网](https://console.anthropic.com/) |
 
 > 也可以通过环境变量提前配置，创建 `.env` 文件或直接设置环境变量。
